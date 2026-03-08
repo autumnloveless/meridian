@@ -171,7 +171,7 @@ export const ProjectsPage = () => {
                         key={project.$jazz.id}
                         className="border-stone-200 bg-stone-50 transition-colors hover:border-stone-300 hover:bg-stone-100/70"
                       >
-                        <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
+                        <CardContent className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <Link
                               to={`/projects/${project.$jazz.id}/overview`}
@@ -220,7 +220,7 @@ export const ProjectsPage = () => {
                   {sortedOrganizations.map((organization) => (
                     <Link key={organization.$jazz.id} to={`/organizations/${organization.$jazz.id}`}>
                       <Card className="h-full border-stone-200 bg-stone-50 transition-colors hover:border-stone-300 hover:bg-stone-100/70">
-                        <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
+                        <CardContent className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <h2 className="text-base font-semibold text-stone-900">{organization.name}</h2>
                             <p className="mt-1 text-sm text-stone-600">View projects in this organization.</p>
@@ -268,7 +268,7 @@ export const ProjectsPage = () => {
                         key={project.$jazz.id}
                         className="border-stone-200 bg-stone-50 transition-colors hover:border-stone-300 hover:bg-stone-100/70"
                       >
-                        <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
+                        <CardContent className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <Link
                               to={`/projects/${project.$jazz.id}/overview`}
