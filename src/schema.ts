@@ -1,4 +1,4 @@
-import { co, z, setDefaultSchemaPermissions } from "jazz-tools";
+import { co, z, setDefaultSchemaPermissions, Group } from "jazz-tools";
 
 setDefaultSchemaPermissions({
   onInlineCreate: "sameAsContainer",
@@ -70,6 +70,7 @@ export const NextIds = co.map({
 export const AccountRoot = co.map({
   organizations: co.list(Organization),
   projects: co.list(Project),
+  pinnedProjects: co.list(Project),
   projectOverviews: co.list(ProjectOverview),
   projectDocuments: co.list(ProjectDocument),
   projectTaskBuckets: co.list(ProjectTaskBucket),
@@ -83,11 +84,12 @@ export const Account = co
     root: AccountRoot,
     profile: co.profile(),
   })
-  .withMigration((account) => {
+  .withMigration(async (account) => {
     if (!account.$jazz.has("root")) {
       account.$jazz.set("root", {
         organizations: [],
         projects: [],
+        pinnedProjects: [],
         projectOverviews: [],
         projectDocuments: [],
         projectTaskBuckets: [],
@@ -102,4 +104,15 @@ export const Account = co
         }),
       });
     }
+    
+    const { root } = await account.$jazz.ensureLoaded({
+      resolve: { root: true },
+    });
+
+    if (!root.$jazz.has("pinnedProjects")) {
+      root.$jazz.set("pinnedProjects", co.list(Project).create([], Group.create()),
+      );
+    }
+
+
   });
