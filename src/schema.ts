@@ -4,11 +4,6 @@ setDefaultSchemaPermissions({
   onInlineCreate: "sameAsContainer",
 });
 
-export const Organization = co.map({
-  name: z.string()
-})
-export type Organization = co.loaded<typeof Organization>;
-
 export const Document = co.map({
   name: z.string(), 
   content: co.richText(),
@@ -71,7 +66,6 @@ export const TaskBucket = co.map({
 
 export const Project = co.map({
   name: z.string(),
-  organization: co.optional(Organization),
   overview: co.richText(),
   documents: co.list(Document),
   requirements: co.list(Requirement),
@@ -80,6 +74,15 @@ export const Project = co.map({
   people: co.list(Person),
   task_buckets: co.list(TaskBucket)
 })
+export type Project = co.loaded<typeof Project>;
+
+export const Organization = co.map({
+  name: z.string(),
+  projects: co.list(Project)
+}).withMigration((organization) => {
+  if (!organization.$jazz.has("projects")) { organization.$jazz.set("projects", co.list(Project).create([], Group.create()))}
+})
+export type Organization = co.loaded<typeof Organization>;
 
 export const AccountRoot = co.map({
   organizations: co.list(Organization),
@@ -87,7 +90,7 @@ export const AccountRoot = co.map({
   people: co.list(Person),
   pinned_projects: co.list(Project)
 });
-export type AccountRoot = co.loaded<typeof Organization>
+export type AccountRoot = co.loaded<typeof AccountRoot>;
 
 const defaultAccount = {
   organizations: [],
@@ -114,4 +117,9 @@ export const Account = co
       root.$jazz.set("pinned_projects", co.list(Project).create([], Group.create()),
       );
     }
+
   });
+  
+export type Account = co.loaded<typeof Account>;
+export type LoadedAccount = co.loaded<typeof Account>;
+export type LoadedAccountRoot = co.loaded<typeof AccountRoot>;
