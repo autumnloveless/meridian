@@ -5,79 +5,96 @@ setDefaultSchemaPermissions({
 });
 
 export const Organization = co.map({
-  id: z.number(),
+  name: z.string()
+})
+export type Organization = co.loaded<typeof Organization>;
+
+export const Document = co.map({
+  name: z.string(), 
+  content: co.richText(),
+  get children(): co.Optional<co.List<typeof Document>> { return co.optional(co.list(Document)) }
+})
+
+export const Requirement = co.map({
   name: z.string(),
-});
+  details: co.richText(),
+  version: z.int(),
+  status: z.enum(["Defined", "In Development", "In Testing", "Completed", "Archived"]),
+  get children(): co.Optional<co.List<typeof Requirement>> { return co.optional(co.list(Requirement)) }
+})
+
+export const Test = co.map({
+  name: z.string(),
+  details: co.richText(),
+  version: z.int(),
+  is_folder: z.boolean(),
+  get children(): co.Optional<co.List<typeof Requirement>> { return co.optional(co.list(Requirement)) }
+})
+export type Test = co.loaded<typeof Test>
+
+export const TestResult = co.map({
+  test: Test,
+  status: z.enum(["Pass", "Fail", "Skipped"]),
+  details: co.richText(),
+  performed_on: z.date(),
+  performed_by: z.string()
+})
+
+export const TestReport = co.map({
+  status: z.enum(["Pass", "Fail", "Other"]),
+  details: co.richText(),
+  performed_on: z.date(),
+  performed_by: z.string(),
+  test_results: co.list(TestResult)
+})
+
+export const Person = co.map({
+  name: z.string(),
+  fields: z.object(),
+  comment: co.richText()
+})
+
+export const Task = co.map({
+  summary: z.string(),
+  assigned_to: co.profile(),
+  status: z.enum(["Backlog", "In Progress", "In-Review", "Completed", "Cancelled", "Archived"]),
+  details: co.richText(),
+  custom_fields: z.object()
+})
+
+export const TaskBucket = co.map({
+  name: z.string(),
+  type: z.enum(["Backlog", "Active", "Custom"]),
+  order: z.int(),
+  tasks: co.list(Task)
+})
 
 export const Project = co.map({
-  id: z.number(),
   name: z.string(),
-  orgId: z.number().optional(),
-});
-
-export const ProjectOverview = co.map({
-  id: z.number(),
-  projectId: z.number(),
-  content: z.string(),
-});
-
-export const ProjectDocument = co.map({
-  id: z.number(),
-  projectId: z.number(),
-  parentDocumentId: z.number(),
-  name: z.string(),
-  content: z.string(),
-});
-
-export const ProjectTaskBucket = co.map({
-  id: z.number(),
-  projectId: z.number(),
-  name: z.string(),
-  order: z.number(),
-  type: z.string(),
-});
-
-export const ProjectTask = co.map({
-  id: z.number(),
-  projectId: z.number(),
-  projectBucketId: z.number(),
-  summary: z.string(),
-  description: z.string(),
-  status: z.string(),
-  assignedTo: z.string(),
-  createdBy: z.string(),
-  createdAt: z.date(),
-  updatedBy: z.string(),
-  updatedAt: z.date(),
-  completedBy: z.string().optional(),
-  completedAt: z.date().optional(),
-  deletedBy: z.string().optional(),
-  deletedAt: z.date().optional(),
-  order: z.number(),
-  type: z.string(),
-  isArchived: z.boolean(),
-});
-
-export const NextIds = co.map({
-  organization: z.number(),
-  project: z.number(),
-  projectOverview: z.number(),
-  projectDocument: z.number(),
-  projectTaskBucket: z.number(),
-  projectTask: z.number(),
-});
+  organization: co.optional(Organization),
+  overview: co.richText(),
+  documents: co.list(Document),
+  requirements: co.list(Requirement),
+  tests: co.list(Test),
+  test_results: co.list(TestReport),
+  people: co.list(Person),
+  task_buckets: co.list(TaskBucket)
+})
 
 export const AccountRoot = co.map({
   organizations: co.list(Organization),
   projects: co.list(Project),
-  pinnedProjects: co.list(Project),
-  projectOverviews: co.list(ProjectOverview),
-  projectDocuments: co.list(ProjectDocument),
-  projectTaskBuckets: co.list(ProjectTaskBucket),
-  projectTasks: co.list(ProjectTask),
-  nextIds: NextIds,
-  profileName: z.string().optional(),
+  people: co.list(Person),
+  pinned_projects: co.list(Project)
 });
+export type AccountRoot = co.loaded<typeof Organization>
+
+const defaultAccount = {
+  organizations: [],
+  people: [],
+  projects: [],
+  pinned_projects: []
+}
 
 export const Account = co
   .account({
@@ -86,33 +103,15 @@ export const Account = co
   })
   .withMigration(async (account) => {
     if (!account.$jazz.has("root")) {
-      account.$jazz.set("root", {
-        organizations: [],
-        projects: [],
-        pinnedProjects: [],
-        projectOverviews: [],
-        projectDocuments: [],
-        projectTaskBuckets: [],
-        projectTasks: [],
-        nextIds: NextIds.create({
-          organization: 1,
-          project: 1,
-          projectOverview: 1,
-          projectDocument: 1,
-          projectTaskBucket: 1,
-          projectTask: 1,
-        }),
-      });
+      account.$jazz.set("root", defaultAccount);
     }
-    
+
     const { root } = await account.$jazz.ensureLoaded({
       resolve: { root: true },
     });
 
-    if (!root.$jazz.has("pinnedProjects")) {
-      root.$jazz.set("pinnedProjects", co.list(Project).create([], Group.create()),
+    if (!root.$jazz.has("pinned_projects")) {
+      root.$jazz.set("pinned_projects", co.list(Project).create([], Group.create()),
       );
     }
-
-
   });

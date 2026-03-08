@@ -1,33 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Pin } from "lucide-react";
 import { useAccount } from "jazz-tools/react";
+import { co } from "jazz-tools";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Account } from "@/schema";
+import { CreateOrganizationDialog } from "../dialogs/CreateOrganizationDialog";
+import { CreateProjectDialog } from "../dialogs/CreateProjectDialog";
+import { Account, Document, Organization, Project } from "@/schema";
 
 export const ProjectsPage = () => {
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+
   const data = useAccount(Account, {
     resolve: {
       root: {
         organizations: { $each: true },
         projects: { $each: true },
-        pinnedProjects: { $each: true }
+        pinned_projects: { $each: true }
       },
     },
     select: (account) =>
       account.$isLoaded
-        ? { account: account, organizations: account.root.organizations, projects: account.root.projects, pinnedProjects: account.root.pinnedProjects }
-        : { account: null, organizations: null, projects: null, pinnedProjects: null},
+        ? { account: account, organizations: account.root.organizations, projects: account.root.projects, pinned_projects: account.root.pinned_projects }
+        : { account: null, organizations: null, projects: null, pinned_projects: null},
   });
 
   const standaloneProjects = useMemo(
     () =>
       [...data.projects ?? []]
-        .filter((project) => !project.orgId || project.orgId === 0)
+        .filter((project) => !project.organization)
         .sort((left, right) => left.name.localeCompare(right.name)),
     [data.projects],
   );
@@ -37,25 +43,68 @@ export const ProjectsPage = () => {
     [data.organizations],
   );
 
-  const pinnedProjectIds: Record<number, object> = data.pinnedProjects?.reduce(((prev, current) => ({...prev, [current.id]: current})), {}) ?? {}
+  const pinnedProjectIds: Record<string, object> = data.pinned_projects?.reduce(((prev, current) => ({...prev, [current.$jazz.id]: current})), {}) ?? {}
 
   const hasAnyContent = standaloneProjects.length > 0 || sortedOrganizations.length > 0;
   const isPageLoading = data === null;
 
-  const togglePin = (projectId: number) => {
-    const project = data.projects?.find(p => p.id === projectId)
+  const togglePin = (projectId: string) => {
+    const project = data.projects?.find(p => p.$jazz.id === projectId)
     if (!project) return
     const pinnedProject = pinnedProjectIds[projectId]
     if (pinnedProject === undefined) {
-      data.pinnedProjects?.$jazz.push(project)
+      data.pinned_projects?.$jazz.push(project)
     } else {
-      data.pinnedProjects?.$jazz.remove(p => p.id === projectId)
+      data.pinned_projects?.$jazz.remove(p => p.$jazz.id === projectId)
     }
+  };
+
+  const createOrganization = (name: string) => {
+    if (!data.account?.root) { return; }
+    const { root } = data.account;
+
+    root.organizations.$jazz.push(
+      Organization.create({ name }),
+    );
+  };
+
+  const createProject = ({ name, organization }: { name: string; organization?: Organization }) => {
+    if (!data.account?.root) { return; }
+    const { root } = data.account;
+
+    root.projects.$jazz.push(
+      Project.create({
+        name: name,
+        organization: organization,
+        overview: co.richText().create(""),
+        documents: [
+          Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
+          Document.create({ name: "Design Docs", content: co.richText().create(""), children: [] }),
+          Document.create({ name: "Technical Docs", content: co.richText().create(""), children: [] }),
+        ],
+        requirements: [],
+        tests: [],
+        test_results: [],
+        people: [],
+        task_buckets: []
+      }),
+    );
+
   };
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-6">
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
+            Create Project
+          </Button>
+
+          <Button type="button" variant="outline" onClick={() => setIsCreateOrgOpen(true)}>
+            Create Org
+          </Button>
+        </div>
+
         {isPageLoading ? (
           <section className="space-y-3">
             <Skeleton className="h-9 w-40" />
@@ -72,8 +121,10 @@ export const ProjectsPage = () => {
                 </p>
 
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                  <Button type="button">Create Project</Button>
-                  <Button type="button" variant="outline">
+                  <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
+                    Create Project
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setIsCreateOrgOpen(true)}>
                     Create Org
                   </Button>
                 </div>
@@ -92,7 +143,7 @@ export const ProjectsPage = () => {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {sortedOrganizations.map((organization) => (
-                    <Link key={organization.id} to={`/organizations/${organization.id}`}>
+                    <Link key={organization.$jazz.id} to={`/organizations/${organization.$jazz.id}`}>
                       <Card className="h-full border-stone-200 bg-stone-50 transition-colors hover:border-stone-300 hover:bg-stone-100/70">
                         <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
                           <div>
@@ -125,7 +176,9 @@ export const ProjectsPage = () => {
                       </p>
 
                       <div className="mt-6 flex flex-wrap items-center gap-3">
-                        <Button type="button">Create Project</Button>
+                        <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
+                          Create Project
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -133,17 +186,17 @@ export const ProjectsPage = () => {
               ) : (
                 <div className="grid gap-4">
                   {standaloneProjects.map((project) => {
-                    const isPinned = project.id in pinnedProjectIds
+                    const isPinned = project.$jazz.id in pinnedProjectIds
 
                     return (
                       <Card
-                        key={project.id}
+                        key={project.$jazz.id}
                         className="border-stone-200 bg-stone-50 transition-colors hover:border-stone-300 hover:bg-stone-100/70"
                       >
                         <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
                           <div className="min-w-0 flex-1">
                             <Link
-                              to={`/projects/${project.id}/overview`}
+                              to={`/projects/${project.$jazz.id}/overview`}
                               className="block truncate text-base font-semibold text-stone-900 hover:underline"
                             >
                               {project.name}
@@ -155,7 +208,7 @@ export const ProjectsPage = () => {
                               type="button"
                               size="icon"
                               variant={isPinned ? "secondary" : "outline"}
-                              onClick={() => togglePin(project.id)}
+                              onClick={() => togglePin(project.$jazz.id)}
                               aria-label={isPinned ? `Unpin ${project.name}` : `Pin ${project.name}`}
                               title={isPinned ? "Unpin project" : "Pin project"}
                             >
@@ -176,6 +229,19 @@ export const ProjectsPage = () => {
           </>
         )}
       </section>
+
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        onSubmit={createOrganization}
+      />
+
+      <CreateProjectDialog
+        open={isCreateProjectOpen}
+        onOpenChange={setIsCreateProjectOpen}
+        organizations={sortedOrganizations}
+        onSubmit={createProject}
+      />
     </div>
   );
 };
