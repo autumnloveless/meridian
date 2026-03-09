@@ -54,7 +54,9 @@ export const Task = co.map({
   assigned_to: co.profile(),
   status: z.enum(["Backlog", "In Progress", "In-Review", "Completed", "Cancelled", "Archived"]),
   details: co.richText(),
-  custom_fields: z.object()
+  custom_fields: z.object(),
+  order: z.int(),
+  type: z.enum(["Bug", "Task"])
 })
 
 export const TaskBucket = co.map({
