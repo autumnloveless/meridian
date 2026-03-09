@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
 
 import { Project } from "@/schema";
+import { getProjectBasePath } from "@/lib/projectPaths";
 
 const toDocumentArray = (value: unknown): any[] => {
   if (!value) return [];
@@ -36,7 +37,12 @@ const flattenDocuments = (documents: readonly any[]): any[] => {
 
 export const ProjectDocsPage = () => {
   const navigate = useNavigate();
-  const { projectId } = useParams();
+  const { projectId, orgId } = useParams();
+
+  const projectBasePath = useMemo(() => {
+    if (!projectId) return "";
+    return getProjectBasePath(projectId, orgId);
+  }, [orgId, projectId]);
 
   const project = useCoState(Project, projectId, {
     resolve: {
@@ -58,8 +64,8 @@ export const ProjectDocsPage = () => {
 
   useEffect(() => {
     if (!project.$isLoaded || !firstDocumentId || !projectId) return;
-    navigate(`/projects/${projectId}/docs/${firstDocumentId}`, { replace: true });
-  }, [firstDocumentId, navigate, project, projectId]);
+    navigate(`${projectBasePath}/docs/${firstDocumentId}`, { replace: true });
+  }, [firstDocumentId, navigate, project, projectBasePath, projectId]);
 
   if (!project.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading docs...</div>;
@@ -79,7 +85,7 @@ export const ProjectDocsPage = () => {
       <h2 className="text-lg font-semibold">Project Docs</h2>
       <p className="text-sm text-muted-foreground">Choose a page from the sidebar to start editing.</p>
       {projectId && firstDocumentId && (
-        <Link className="text-sm underline" to={`/projects/${projectId}/docs/${firstDocumentId}`}>
+        <Link className="text-sm underline" to={`${projectBasePath}/docs/${firstDocumentId}`}>
           Open first page
         </Link>
       )}

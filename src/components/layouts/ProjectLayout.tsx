@@ -4,12 +4,13 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-rout
 import { co } from "jazz-tools";
 import { useCoState } from "jazz-tools/react";
 
-import { Document, Project } from "@/schema";
+import { Document, Organization, Project } from "@/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { getProjectBasePath } from "@/lib/projectPaths";
 
 const projectNavItems = [
   { to: "overview", label: "Overview" },
@@ -27,7 +28,7 @@ const taskSubNavItems = [
 ] as const;
 
 export const ProjectLayout = () => {
-  const { projectId } = useParams();
+  const { projectId, orgId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -37,13 +38,30 @@ export const ProjectLayout = () => {
     },
   });
 
+  const organization = useCoState(Organization, orgId);
+
+  const projectBasePath = useMemo(() => {
+    if (!projectId) return "";
+    return getProjectBasePath(projectId, orgId);
+  }, [orgId, projectId]);
+
   const isInTasksSection = projectId
-    ? location.pathname.startsWith(`/projects/${projectId}/tasks`)
+    ? location.pathname.startsWith(`${projectBasePath}/tasks`)
     : false;
 
   const isInDocsSection = projectId
-    ? location.pathname.startsWith(`/projects/${projectId}/docs`)
+    ? location.pathname.startsWith(`${projectBasePath}/docs`)
     : false;
+  const organizationSubtitle = orgId
+    ? organization.$isLoaded
+      ? organization.name
+      : organization.$jazz.loadingState === "unauthorized"
+        ? "Organization not accessible"
+        : organization.$jazz.loadingState === "unavailable"
+          ? "Organization not found"
+          : "Loading organization..."
+    : null;
+
 
   const activeDocId = useMemo(() => {
     const match = location.pathname.match(/\/docs\/(.+)$/);
@@ -90,7 +108,7 @@ export const ProjectLayout = () => {
       project.documents.$jazz.push(newDocument);
     }
 
-    navigate(`/projects/${projectId}/docs/${newDocument.$jazz.id}`);
+    navigate(`${projectBasePath}/docs/${newDocument.$jazz.id}`);
   };
 
   const moveDocument = async (sourceId: string, sourceParentId: string | null, targetParentId: string | null) => {
@@ -189,7 +207,7 @@ export const ProjectLayout = () => {
     }
 
     if (activeDocId === docId && projectId) {
-      navigate(`/projects/${projectId}/docs`, { replace: true });
+      navigate(`${projectBasePath}/docs`, { replace: true });
     }
 
     setDeleteTarget(null);
@@ -200,6 +218,7 @@ export const ProjectLayout = () => {
       <Card className="h-full">
         <CardHeader className="border-b">
           <CardTitle className="truncate text-lg">{projectTitle}</CardTitle>
+          {organizationSubtitle && <p className="text-xs text-muted-foreground">{organizationSubtitle}</p>}
         </CardHeader>
 
         <CardContent className="flex h-full flex-col gap-2">
@@ -284,7 +303,7 @@ export const ProjectLayout = () => {
                         {project.documents.map((document) => (
                           <DocsTreeItem
                             key={document.$jazz.id}
-                            projectId={projectId ?? ""}
+                            projectBasePath={projectBasePath}
                             docId={document.$jazz.id}
                             activeDocId={activeDocId}
                             parentId={null}
@@ -354,7 +373,7 @@ export const ProjectLayout = () => {
 };
 
 const DocsTreeItem = ({
-  projectId,
+  projectBasePath,
   docId,
   activeDocId,
   parentId,
@@ -366,7 +385,7 @@ const DocsTreeItem = ({
   onDropTargetChange,
   onRootDropActiveChange,
 }: {
-  projectId: string;
+  projectBasePath: string;
   docId: string;
   activeDocId: string | null;
   parentId: string | null;
@@ -397,7 +416,7 @@ const DocsTreeItem = ({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <NavLink
-            to={`/projects/${projectId}/docs/${docId}`}
+            to={`${projectBasePath}/docs/${docId}`}
             title={document.name}
             draggable
             onDragStart={(event) => {
@@ -483,7 +502,7 @@ const DocsTreeItem = ({
           {children.map((child) => (
             <DocsTreeItem
               key={child.$jazz.id}
-              projectId={projectId}
+              projectBasePath={projectBasePath}
               docId={child.$jazz.id}
               activeDocId={activeDocId}
               parentId={docId}

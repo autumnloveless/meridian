@@ -56,6 +56,28 @@ export const Router = () => {
                         <Route path="test-results/:testResultId" element={<ProjectTestResultDetailsPage />} />
                         <Route path="settings" element={<ProjectSettingsPage />} />
                     </Route>
+
+                    <Route path="/organizations/:orgId/projects/:projectId" element={<ProjectLayout />}>
+                        <Route path="overview" element={<ProjectOverviewPage />} />
+                        <Route path="tags" element={<ProjectTagsPage />} />
+                        <Route path="people" element={<ProjectPeoplePage />} />
+                        <Route path="tasks" element={<ProjectTasksPage />}>
+                            <Route index element={<Navigate to="list" replace />} />
+                            <Route path="list" element={<ProjectTasksListPage />} />
+                            <Route path="board" element={<ProjectTasksBoardPage />} />
+                            <Route path="archive" element={<ProjectTasksArchivePage />} />
+                        </Route>
+                        <Route path="tasks/:taskId" element={<ProjectTaskDetailsPage />} />
+                        <Route path="docs" element={<ProjectDocsPage />} />
+                        <Route path="docs/:docId" element={<ProjectDocDetailsPage />} />
+                        <Route path="tests" element={<ProjectTestsPage />} />
+                        <Route path="tests/:testId" element={<ProjectTestDetailsPage />} />
+                        <Route path="requirements" element={<ProjectRequirementsPage />} />
+                        <Route path="requirements/:requirementId" element={<ProjectRequirementDetailsPage />} />
+                        <Route path="test-results" element={<ProjectTestResultsPage />} />
+                        <Route path="test-results/:testResultId" element={<ProjectTestResultDetailsPage />} />
+                        <Route path="settings" element={<ProjectSettingsPage />} />
+                    </Route>
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

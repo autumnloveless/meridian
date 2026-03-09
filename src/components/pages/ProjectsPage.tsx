@@ -13,6 +13,7 @@ import { CreateOrganizationDialog } from "../dialogs/CreateOrganizationDialog";
 import { CreateProjectDialog } from "../dialogs/CreateProjectDialog";
 import { Account, Document, Organization, Project } from "@/schema";
 import { cn } from "@/lib/utils";
+import { getProjectBasePath } from "@/lib/projectPaths";
 
 type ProjectScope = "all" | "standalone" | string;
 
@@ -413,9 +414,10 @@ export const ProjectsPage = () => {
             <div className="p-8 text-center text-sm text-muted-foreground">This organization does not contain any projects.</div>
           ) : (
             <ul className="divide-y">
-              {visibleProjects.map(({ project, organizationName }) => {
+              {visibleProjects.map(({ project, organizationId, organizationName }) => {
                 const isPinned = pinnedProjectIds.has(project.$jazz.id);
                 const isEditingName = editingProjectId === project.$jazz.id;
+                const projectBasePath = getProjectBasePath(project.$jazz.id, organizationId);
 
                 return (
                   <li
@@ -454,7 +456,7 @@ export const ProjectsPage = () => {
                         />
                       ) : (
                         <Link
-                          to={`/projects/${project.$jazz.id}/overview`}
+                          to={`${projectBasePath}/overview`}
                           className="block truncate text-sm font-semibold text-stone-900 hover:underline"
                         >
                           {project.name}
