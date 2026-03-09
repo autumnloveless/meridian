@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { useAccount } from "jazz-tools/react";
 import { co } from "jazz-tools";
 
-import { Account, Organization } from "@/schema";
+import { Account, Organization, Document } from "@/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateOrganizationDialog } from "@/components/dialogs/CreateOrganizationDialog";
@@ -44,8 +44,12 @@ export const OrganizationsPage = () => {
       name,
       overview: co.richText().create(""),
       projects: [],
-      documents: [],
+      documents: [
+        Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
+        Document.create({ name: "Project Ideas", content: co.richText().create(""), children: [] }),
+      ],
       people: [],
+      task_buckets: [],
     });
 
     account.root.organizations.$jazz.push(organization);

@@ -9,6 +9,10 @@ import { OrganizationProjectsPage } from "./components/pages/OrganizationProject
 import { OrganizationPeoplePage } from "./components/pages/OrganizationPeoplePage";
 import { OrganizationDocsPage } from "./components/pages/OrganizationDocsPage";
 import { OrganizationDocDetailsPage } from "./components/pages/OrganizationDocDetailsPage";
+import { OrganizationTasksPage } from "./components/pages/OrganizationTasksPage";
+import { OrganizationTasksListPage } from "./components/pages/OrganizationTasksListPage";
+import { OrganizationTasksBoardPage } from "./components/pages/OrganizationTasksBoardPage";
+import { OrganizationTasksArchivePage } from "./components/pages/OrganizationTasksArchivePage";
 import { OrganizationSettingsPage } from "./components/pages/OrganizationSettingsPage";
 import { TagsPage } from "./components/pages/TagsPage";
 import { ProjectOverviewPage } from "./components/pages/ProjectOverviewPage";
@@ -44,6 +48,12 @@ export const Router = () => {
                         <Route index element={<Navigate to="overview" replace />} />
                         <Route path="overview" element={<OrganizationOverviewPage />} />
                         <Route path="projects" element={<OrganizationProjectsPage />} />
+                        <Route path="tasks" element={<OrganizationTasksPage />}>
+                            <Route index element={<Navigate to="list" replace />} />
+                            <Route path="list" element={<OrganizationTasksListPage />} />
+                            <Route path="board" element={<OrganizationTasksBoardPage />} />
+                            <Route path="archive" element={<OrganizationTasksArchivePage />} />
+                        </Route>
                         <Route path="people" element={<OrganizationPeoplePage />} />
                         <Route path="docs" element={<OrganizationDocsPage />} />
                         <Route path="docs/:docId" element={<OrganizationDocDetailsPage />} />

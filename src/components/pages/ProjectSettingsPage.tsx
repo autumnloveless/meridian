@@ -113,6 +113,7 @@ export const ProjectSettingsPage = () => {
   const [inviteLink, setInviteLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const [memberActionError, setMemberActionError] = useState<string | null>(null);
+  const [publicAccessStatus, setPublicAccessStatus] = useState<"idle" | "updated" | "failed">("idle");
 
   useEffect(() => {
     if (!project.$isLoaded) return;
@@ -128,6 +129,9 @@ export const ProjectSettingsPage = () => {
     if (!ownerGroup.$isLoaded) return false;
     return ownerGroup.myRole() === "admin";
   }, [ownerGroup]);
+
+  const everyoneRole = ownerGroup.$isLoaded ? ownerGroup.getRoleOf("everyone") : undefined;
+  const isPubliclyReadable = everyoneRole === "reader" || everyoneRole === "writer" || everyoneRole === "manager" || everyoneRole === "admin";
 
   const isCascadingFromOrg = useMemo(() => {
     if (!project.$isLoaded || !organization.$isLoaded) return false;
@@ -188,6 +192,17 @@ export const ProjectSettingsPage = () => {
     }
   };
 
+  const makeProjectPubliclyReadable = () => {
+    if (!isAuthenticated || !ownerGroup.$isLoaded || !canManagePermissions) return;
+
+    try {
+      ownerGroup.makePublic("reader");
+      setPublicAccessStatus("updated");
+    } catch {
+      setPublicAccessStatus("failed");
+    }
+  };
+
   const memberIds = ownerGroup.$isLoaded ? ownerGroup.members.map((member) => member.id) : [];
 
   return (
@@ -211,6 +226,36 @@ export const ProjectSettingsPage = () => {
               Save
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Public Access</CardTitle>
+          <CardDescription>Allow anyone with the project link to read project data.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Current visibility: {isPubliclyReadable ? "Publicly readable" : "Private"}
+          </p>
+
+          {isCascadingFromOrg ? (
+            <p className="text-xs text-muted-foreground">
+              This project shares the organization owner group. Making it public also affects the organization-level group.
+            </p>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={makeProjectPubliclyReadable}
+            disabled={!canManagePermissions || isPubliclyReadable}
+          >
+            {isPubliclyReadable ? "Already Public" : "Make Publicly Readable"}
+          </Button>
+
+          {publicAccessStatus === "updated" ? <p className="text-xs text-green-700">Project is now publicly readable.</p> : null}
+          {publicAccessStatus === "failed" ? <p className="text-xs text-red-700">Could not update public access with your current permissions.</p> : null}
         </CardContent>
       </Card>
 

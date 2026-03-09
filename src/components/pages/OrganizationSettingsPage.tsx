@@ -117,6 +117,7 @@ export const OrganizationSettingsPage = () => {
   const [inviteLink, setInviteLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const [memberActionError, setMemberActionError] = useState<string | null>(null);
+  const [publicAccessStatus, setPublicAccessStatus] = useState<"idle" | "updated" | "failed">("idle");
 
   useEffect(() => {
     if (!organization.$isLoaded) return;
@@ -132,6 +133,9 @@ export const OrganizationSettingsPage = () => {
     if (!ownerGroup.$isLoaded) return false;
     return ownerGroup.myRole() === "admin";
   }, [ownerGroup]);
+
+  const everyoneRole = ownerGroup.$isLoaded ? ownerGroup.getRoleOf("everyone") : undefined;
+  const isPubliclyReadable = everyoneRole === "reader" || everyoneRole === "writer" || everyoneRole === "manager" || everyoneRole === "admin";
 
   if (!organization.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading organization settings...</div>;
@@ -187,6 +191,17 @@ export const OrganizationSettingsPage = () => {
     }
   };
 
+  const makeOrganizationPubliclyReadable = () => {
+    if (!isAuthenticated || !ownerGroup.$isLoaded || !canManagePermissions) return;
+
+    try {
+      ownerGroup.makePublic("reader");
+      setPublicAccessStatus("updated");
+    } catch {
+      setPublicAccessStatus("failed");
+    }
+  };
+
   const memberIds = ownerGroup.$isLoaded ? ownerGroup.members.map((member) => member.id) : [];
 
   return (
@@ -210,6 +225,30 @@ export const OrganizationSettingsPage = () => {
               Save
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Public Access</CardTitle>
+          <CardDescription>Allow anyone with the organization link to read organization data.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Current visibility: {isPubliclyReadable ? "Publicly readable" : "Private"}
+          </p>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={makeOrganizationPubliclyReadable}
+            disabled={!canManagePermissions || isPubliclyReadable}
+          >
+            {isPubliclyReadable ? "Already Public" : "Make Publicly Readable"}
+          </Button>
+
+          {publicAccessStatus === "updated" ? <p className="text-xs text-green-700">Organization is now publicly readable.</p> : null}
+          {publicAccessStatus === "failed" ? <p className="text-xs text-red-700">Could not update public access with your current permissions.</p> : null}
         </CardContent>
       </Card>
 

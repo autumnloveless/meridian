@@ -38,8 +38,11 @@ export const DocsNavSection = ({
     });
 
     if (activeDocId) {
-      const parent = documents.find((doc) => doc.$jazz.id === activeDocId);
-      if (parent) {
+      const parentRef = documents.find((doc) => doc.$jazz.id === activeDocId);
+      if (parentRef) {
+        const parent = await Document.load(parentRef.$jazz.id, { resolve: { children: true } });
+        if (!parent.$isLoaded) return;
+
         const loadedParent = await parent.$jazz.ensureLoaded({ resolve: { children: true } });
         if (!loadedParent.children) loadedParent.$jazz.set("children", []);
 

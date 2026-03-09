@@ -87,6 +87,7 @@ export const Organization = co.map({
   projects: co.list(Project),
   documents: co.list(Document),
   people: co.list(Person),
+  task_buckets: co.list(TaskBucket),
 }).withMigration((organization) => {
   if (!organization.$jazz.has("overview")) {
     organization.$jazz.set("overview", co.richText().create(""));
@@ -99,6 +100,18 @@ export const Organization = co.map({
   }
   if (!organization.$jazz.has("people")) {
     organization.$jazz.set("people", co.list(Person).create([], Group.create()));
+  }
+  if (!organization.$jazz.has("task_buckets")) {
+    organization.$jazz.set(
+      "task_buckets",
+      co.list(TaskBucket).create(
+        [
+          TaskBucket.create({ name: "Backlog", type: "Backlog", order: 1, tasks: [] }),
+          TaskBucket.create({ name: "Active", type: "Active", order: 2, tasks: [] }),
+        ],
+        Group.create()
+      )
+    );
   }
 })
 export type Organization = co.loaded<typeof Organization>;
@@ -200,6 +213,10 @@ export const Account = co
         projects: [],
         documents: [],
         people: [],
+        task_buckets: [
+          TaskBucket.create({ name: "Backlog", type: "Backlog", order: 1, tasks: [] }),
+          TaskBucket.create({ name: "Active", type: "Active", order: 2, tasks: [] }),
+        ],
       });
     }
 

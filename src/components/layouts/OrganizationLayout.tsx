@@ -12,8 +12,15 @@ import { getOrganizationBasePath } from "@/lib/projectPaths";
 const organizationNavItems = [
   { to: "overview", label: "Overview" },
   { to: "projects", label: "Projects" },
+  { to: "tasks", label: "Tasks" },
   { to: "people", label: "People" },
   { to: "docs", label: "Docs" },
+] as const;
+
+const taskSubNavItems = [
+  { to: "tasks/list", label: "List" },
+  { to: "tasks/board", label: "Board" },
+  { to: "tasks/archive", label: "Archive" },
 ] as const;
 
 export const OrganizationLayout = () => {
@@ -35,6 +42,9 @@ export const OrganizationLayout = () => {
 
   const isInDocsSection = orgId
     ? location.pathname.startsWith(`${organizationBasePath}/docs`)
+    : false;
+  const isInTasksSection = orgId
+    ? location.pathname.startsWith(`${organizationBasePath}/tasks`)
     : false;
 
   const activeDocId = useMemo(() => {
@@ -83,6 +93,26 @@ export const OrganizationLayout = () => {
                   >
                     {item.label}
                   </NavLink>
+                )}
+
+                {item.to === "tasks" && isInTasksSection && (
+                  <div className="ml-4 flex flex-col gap-1 border-l pl-2">
+                    {taskSubNavItems.map((subItem) => (
+                      <NavLink
+                        key={subItem.to}
+                        to={subItem.to}
+                        className={({ isActive }) =>
+                          cn(
+                            buttonVariants({ variant: "ghost" }),
+                            "h-8 w-full justify-start px-2 text-xs",
+                            isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                          )
+                        }
+                      >
+                        {subItem.label}
+                      </NavLink>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
