@@ -79,6 +79,7 @@ export const OrganizationProjectsPage = () => {
         requirements: [],
         tests: [],
         test_results: [],
+        linked_people: [],
         people: [],
         task_buckets: [],
       },
@@ -235,6 +236,9 @@ export const OrganizationProjectsPage = () => {
             people: {
               $each: true,
             },
+            linked_people: {
+              $each: true,
+            },
             task_buckets: {
               $each: {
                 tasks: {
@@ -262,6 +266,7 @@ export const OrganizationProjectsPage = () => {
             requirements: source.requirements.map((requirement) => copyRequirementTree(requirement)),
             tests: source.tests.map((test) => copyTestTree(test)),
             test_results: source.test_results.map((report) => copyTestReport(report)),
+            linked_people: source.linked_people.map((person) => person),
             people: source.people.map((person) => ({
               name: person.name,
               fields: person.fields,

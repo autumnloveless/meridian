@@ -10,7 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Document, Organization, Project, Requirement, Task, Test, TestReport } from "@/schema";
+import { Document, Organization, Person, Project, Requirement, Task, Test, TestReport } from "@/schema";
 
 type Crumb = {
   label: string;
@@ -46,6 +46,7 @@ export const AppBreadcrumbs = () => {
   const requirement = useCoState(Requirement, params.requirementId);
   const test = useCoState(Test, params.testId);
   const testResult = useCoState(TestReport, params.testResultId);
+  const person = useCoState(Person, params.personId);
 
   const dynamicLabels = useMemo(() => {
     const byValue: Record<string, string> = {};
@@ -71,6 +72,9 @@ export const AppBreadcrumbs = () => {
     if (params.testResultId) {
       byValue[params.testResultId] = testResult.$isLoaded ? testResult.performed_by : "Test Result";
     }
+    if (params.personId) {
+      byValue[params.personId] = person.$isLoaded ? person.name : "Person";
+    }
 
     return byValue;
   }, [
@@ -81,8 +85,10 @@ export const AppBreadcrumbs = () => {
     params.taskId,
     params.testId,
     params.testResultId,
+    params.personId,
     document,
     organization,
+    person,
     project,
     requirement,
     task,
@@ -117,6 +123,7 @@ export const AppBreadcrumbs = () => {
       else if (segment === params.requirementId) kind = "requirement";
       else if (segment === params.testId) kind = "test";
       else if (segment === params.testResultId) kind = "test-result";
+      else if (segment === params.personId) kind = "person";
 
       built.push({ label, to: currentPath, kind });
     }
@@ -132,6 +139,7 @@ export const AppBreadcrumbs = () => {
     params.taskId,
     params.testId,
     params.testResultId,
+    params.personId,
   ]);
 
   const mobileCrumbs = useMemo(() => {

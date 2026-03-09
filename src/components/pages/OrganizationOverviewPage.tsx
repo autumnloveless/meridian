@@ -1,18 +1,69 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router";
-import { useCoState } from "jazz-tools/react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
+import { co } from "jazz-tools";
+import { useAccount, useCoState } from "jazz-tools/react";
 
-import { Organization } from "@/schema";
+import { Account, Organization, Task as TaskSchema } from "@/schema";
+import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
+import { ensureDefaultBuckets, type LoadedOrganization } from "@/components/tasks/organizationTasksShared";
+
+type LoadedTask = co.loaded<typeof TaskSchema>;
+
+const boardColumns = [
+  { status: "Backlog", title: "Backlog", tone: "bg-slate-100 text-slate-700" },
+  { status: "In Progress", title: "In Progress", tone: "bg-blue-100 text-blue-700" },
+  { status: "In-Review", title: "In-Review", tone: "bg-amber-100 text-amber-800" },
+  { status: "Completed", title: "Completed", tone: "bg-emerald-100 text-emerald-800" },
+  { status: "Cancelled", title: "Cancelled", tone: "bg-rose-100 text-rose-800" },
+] as const;
 
 export const OrganizationOverviewPage = () => {
   const { orgId } = useParams();
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
+  const [taskView, setTaskView] = useState<"list" | "kanban">("list");
+  const [taskType, setTaskType] = useState<"Task" | "Bug">("Task");
+  const [taskSummary, setTaskSummary] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const profile = useAccount(Account, {
+    resolve: { profile: true },
+    select: (account) => (account.$isLoaded ? account.profile : null),
+  });
+
   const organization = useCoState(Organization, orgId, {
-    resolve: { overview: true },
+    resolve: {
+      overview: true,
+      task_buckets: {
+        $each: {
+          tasks: {
+            $each: {
+              assigned_to: true,
+              details: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   const [draft, setDraft] = useState("");
   const [lastSaved, setLastSaved] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!organization.$isLoaded) return;
+    ensureDefaultBuckets(organization as LoadedOrganization);
+  }, [organization]);
 
   useEffect(() => {
     if (!organization.$isLoaded) return;
@@ -38,6 +89,47 @@ export const OrganizationOverviewPage = () => {
     return () => window.clearTimeout(timeout);
   }, [organization, draft, lastSaved]);
 
+  const activeTasks = useMemo(() => {
+    if (!organization.$isLoaded) return [] as Array<{ bucket: any; bucketName: string; task: LoadedTask }>;
+
+    const tasks: Array<{ bucket: any; bucketName: string; task: LoadedTask }> = [];
+    for (const bucket of organization.task_buckets.map((entry) => entry)) {
+      for (const task of bucket.tasks.map((entry) => entry)) {
+        if (task.status === "Archived") continue;
+        tasks.push({ bucket, bucketName: bucket.name, task });
+      }
+    }
+
+    return tasks.sort((left, right) => left.task.order - right.task.order || left.task.summary.localeCompare(right.task.summary));
+  }, [organization]);
+
+  const selectedTaskEntry = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return activeTasks.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
+  }, [activeTasks, selectedTaskId]);
+
+  const selectedTask = selectedTaskEntry?.task ?? null;
+
+  const columns = useMemo(() => {
+    const initial: Record<string, Array<{ bucketName: string; task: LoadedTask }>> = {
+      Backlog: [],
+      "In Progress": [],
+      "In-Review": [],
+      Completed: [],
+      Cancelled: [],
+    };
+
+    for (const entry of activeTasks) {
+      if (entry.task.status in initial) {
+        initial[entry.task.status].push(entry);
+      }
+    }
+
+    return initial;
+  }, [activeTasks]);
+
+  const effectiveTaskView = isDesktop ? taskView : "list";
+
   if (!orgId) return <div className="text-sm text-red-700">Invalid organization URL.</div>;
   if (!organization.$isLoaded) return <div className="text-sm text-muted-foreground">Loading organization summary...</div>;
 
@@ -56,6 +148,174 @@ export const OrganizationOverviewPage = () => {
       />
 
       <p className="text-xs text-muted-foreground">{isSaving ? "Saving..." : draft === lastSaved ? "All changes saved" : "Unsaved changes"}</p>
+
+      <section className="space-y-3 rounded-md border bg-card p-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-base font-semibold">Active Tasks</h3>
+            <p className="text-xs text-muted-foreground">Track organization backlog and work in progress.</p>
+          </div>
+          {isDesktop ? (
+            <div className="flex items-center gap-1 rounded-md border p-1">
+              <Button type="button" size="sm" variant={taskView === "list" ? "default" : "ghost"} onClick={() => setTaskView("list")}>List</Button>
+              <Button type="button" size="sm" variant={taskView === "kanban" ? "default" : "ghost"} onClick={() => setTaskView("kanban")}>Kanban</Button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_auto]">
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={taskType}
+            onChange={(event) => setTaskType(event.target.value as "Task" | "Bug")}
+          >
+            <option value="Task">Task</option>
+            <option value="Bug">Bug</option>
+          </select>
+          <Input
+            value={taskSummary}
+            onChange={(event) => setTaskSummary(event.target.value)}
+            placeholder="Add a task to backlog"
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              const backlog = organization.task_buckets.find((bucket) => bucket.type === "Backlog") ?? organization.task_buckets[0];
+              if (!backlog || !profile || !taskSummary.trim()) return;
+
+              backlog.tasks.$jazz.push({
+                ...allocateTaskId(organization),
+                summary: taskSummary.trim(),
+                type: taskType,
+                assigned_to: profile,
+                status: "Backlog",
+                details: "",
+                custom_fields: {},
+                order: backlog.tasks.length + 1,
+                tags: [],
+              });
+              setTaskSummary("");
+            }}
+          />
+          <Button
+            type="button"
+            onClick={() => {
+              const backlog = organization.task_buckets.find((bucket) => bucket.type === "Backlog") ?? organization.task_buckets[0];
+              if (!backlog || !profile || !taskSummary.trim()) return;
+
+              backlog.tasks.$jazz.push({
+                ...allocateTaskId(organization),
+                summary: taskSummary.trim(),
+                type: taskType,
+                assigned_to: profile,
+                status: "Backlog",
+                details: "",
+                custom_fields: {},
+                order: backlog.tasks.length + 1,
+                tags: [],
+              });
+              setTaskSummary("");
+            }}
+            disabled={!profile || !taskSummary.trim()}
+          >
+            Add to Backlog
+          </Button>
+        </div>
+
+        {effectiveTaskView === "list" ? (
+          <div className="overflow-hidden rounded-md border">
+            <table className="w-full table-fixed border-collapse text-sm">
+              <thead className="bg-muted/60 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="w-28 px-2 py-1 text-left">Key</th>
+                  <th className="px-2 py-1 text-left">Summary</th>
+                  <th className="w-24 px-2 py-1 text-left">Type</th>
+                  <th className="w-24 px-2 py-1 text-left">Status</th>
+                  <th className="w-24 px-2 py-1 text-left">Bucket</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeTasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-2 py-3 text-xs text-muted-foreground">No active tasks yet.</td>
+                  </tr>
+                ) : (
+                  activeTasks.map((entry) => (
+                    <tr key={entry.task.$jazz.id} className="cursor-pointer border-t hover:bg-muted/40" onClick={() => setSelectedTaskId(entry.task.$jazz.id)}>
+                      <td className="px-2 py-1 text-[11px] font-medium text-sky-700">
+                        <Link
+                          to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+                          className="hover:underline"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {getTaskDisplayId(entry.task, organization.project_key)}
+                        </Link>
+                      </td>
+                      <td className="px-2 py-1">{entry.task.summary}</td>
+                      <td className="px-2 py-1 text-[11px] uppercase">{entry.task.type}</td>
+                      <td className="px-2 py-1 text-[11px] uppercase">{entry.task.status}</td>
+                      <td className="px-2 py-1 text-xs text-muted-foreground">{entry.bucketName}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max gap-3">
+              {boardColumns.map((column) => (
+                <div key={column.status} className="w-[18rem] rounded-md border bg-muted/20">
+                  <div className="flex items-center justify-between border-b px-3 py-2">
+                    <p className="text-sm font-semibold">{column.title}</p>
+                    <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
+                  </div>
+                  <div className="space-y-2 p-2">
+                    {columns[column.status].length === 0 ? (
+                      <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
+                    ) : (
+                      columns[column.status].map((entry) => (
+                        <button
+                          key={entry.task.$jazz.id}
+                          type="button"
+                          className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
+                          onClick={() => setSelectedTaskId(entry.task.$jazz.id)}
+                        >
+                          <p className="text-sm font-medium">{entry.task.summary}</p>
+                          <Link
+                            to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+                            className="text-[11px] text-sky-700 hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {getTaskDisplayId(entry.task, organization.project_key)}
+                          </Link>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <TaskDetailsPane
+        open={Boolean(selectedTask)}
+        task={selectedTask}
+        taskIdPrefix={organization.project_key}
+        taskHref={selectedTask ? `/organizations/${orgId}/tasks/${selectedTask.$jazz.id}` : undefined}
+        onArchive={() => {
+          if (!selectedTask) return;
+          selectedTask.$jazz.set("status", "Archived");
+        }}
+        onDelete={() => {
+          if (!selectedTaskEntry) return;
+          const bucket = selectedTaskEntry.bucket as any;
+          const nextTasks = bucket.tasks.filter((candidate: any) => candidate.$jazz.id !== selectedTaskEntry.task.$jazz.id);
+          bucket.tasks.$jazz.applyDiff(nextTasks);
+          setSelectedTaskId(null);
+        }}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </section>
   );
 };

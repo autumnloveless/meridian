@@ -83,9 +83,15 @@ export const Project = co.map({
   requirements: co.list(Requirement),
   tests: co.list(Test),
   test_results: co.list(TestReport),
+  linked_people: co.list(Person),
+  // Legacy project-local people. Keep for backwards compatibility only.
   people: co.list(Person),
   task_buckets: co.list(TaskBucket)
 }).withMigration((project) => {
+  if (!project.$jazz.has("linked_people")) {
+    project.$jazz.set("linked_people", []);
+  }
+
   if (!project.$jazz.has("project_key")) {
     project.$jazz.set("project_key", defaultProjectKeyFromName(project.name, "PRJ"));
   } else {

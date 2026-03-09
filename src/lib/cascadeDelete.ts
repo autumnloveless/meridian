@@ -84,7 +84,6 @@ export const cascadeDeleteProject = async (projectId: string) => {
           test_results: { $each: true },
         },
       },
-      people: { $each: true },
       task_buckets: {
         $each: {
           tasks: { $each: true },
@@ -102,7 +101,6 @@ export const cascadeDeleteProject = async (projectId: string) => {
     bucket.tasks.map((task) => task.$jazz.id),
   );
 
-  const personIds = project.people.map((person) => person.$jazz.id);
   const testIds = project.tests.map((test) => test.$jazz.id);
   const reportIds = project.test_results.map((report) => report.$jazz.id);
   const resultIds = project.test_results.flatMap((report) =>
@@ -127,7 +125,6 @@ export const cascadeDeleteProject = async (projectId: string) => {
   await deleteByIds(TestReport, reportIds);
   await deleteByIds(Task, taskIds);
   await deleteByIds(TaskBucket, taskBucketIds);
-  await deleteByIds(Person, personIds);
   await deleteByIds(Requirement, requirementIds);
   await deleteByIds(Test, testIds);
   await deleteByIds(Document, documentIds);

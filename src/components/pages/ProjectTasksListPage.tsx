@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { co } from "jazz-tools";
 import { useAccount, useCoState } from "jazz-tools/react";
 import {
@@ -80,6 +80,7 @@ function TaskRow({
   task,
   bucketId,
   taskIdPrefix,
+  taskHref,
   onSelect,
   canMoveUp,
   canMoveDown,
@@ -89,6 +90,7 @@ function TaskRow({
   task: LoadedTask;
   bucketId: string;
   taskIdPrefix: string;
+  taskHref?: string;
   onSelect: (task: LoadedTask) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -124,7 +126,19 @@ function TaskRow({
           <GripVertical className="h-3.5 w-3.5" />
         </button>
       </td>
-      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</td>
+      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">
+        {taskHref ? (
+          <Link
+            to={taskHref}
+            className="hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {getTaskDisplayId(task, taskIdPrefix)}
+          </Link>
+        ) : (
+          getTaskDisplayId(task, taskIdPrefix)
+        )}
+      </td>
       <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
       <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
         {task.tags.length > 0 ? (
@@ -226,7 +240,7 @@ function InsertionIndicatorRow() {
 }
 
 export const ProjectTasksListPage = () => {
-  const { projectId } = useParams();
+  const { orgId, projectId } = useParams();
   const [editingBucketId, setEditingBucketId] = useState<string | null>(null);
   const [editingBucketName, setEditingBucketName] = useState("");
   const [createDraft, setCreateDraft] = useState<DraftTask>(defaultDraftTask);
@@ -326,8 +340,13 @@ export const ProjectTasksListPage = () => {
     setCreateDraft((current) => ({ ...current, bucketId: defaultBucket.$jazz.id }));
   }, [createDraft.bucketId, createTargetBuckets, isCreateDialogOpen]);
 
-  const bucketTypeToTaskStatus = (bucketType: BucketType): LoadedTask["status"] =>
-    bucketType === "Active" ? "In Progress" : "Backlog";
+  const syncStatusForTargetBucket = (task: LoadedTask, bucketType: BucketType) => {
+    // Bucket membership and workflow status are decoupled.
+    // Only entering the backlog bucket should force Backlog status.
+    if (bucketType === "Backlog" && task.status !== "Backlog") {
+      task.$jazz.set("status", "Backlog");
+    }
+  };
   const projectTaskPrefix = project.$isLoaded ? project.project_key : "TASK";
 
   const getTaskKey = (task: LoadedTask) => getTaskDisplayId(task, projectTaskPrefix);
@@ -449,7 +468,7 @@ export const ProjectTasksListPage = () => {
         summary: normalizedSummary,
         type: taskType,
         assigned_to: profile,
-        status: bucketTypeToTaskStatus(bucket.type),
+        status: "Backlog",
         details: "",
         custom_fields: {},
         order: bucket.tasks.length + 1,
@@ -496,7 +515,7 @@ export const ProjectTasksListPage = () => {
     if (!movedTask) return;
 
     targetBucket.tasks.$jazz.push(movedTask);
-    movedTask.$jazz.set("status", bucketTypeToTaskStatus(targetBucket.type));
+    syncStatusForTargetBucket(movedTask, targetBucket.type);
 
     normalizeTaskOrder(sourceBucket);
     normalizeTaskOrder(targetBucket);
@@ -644,7 +663,7 @@ export const ProjectTasksListPage = () => {
     const targetTasks = targetBucket.tasks as unknown as LoadedTask[];
     const insertAt = Math.min(Math.max(targetIndex, 0), targetTasks.length);
     (targetBucket.tasks.$jazz as { splice: (start: number, deleteCount: number, ...items: LoadedTask[]) => void }).splice(insertAt, 0, movedTask);
-    movedTask.$jazz.set("status", bucketTypeToTaskStatus(targetBucket.type));
+    syncStatusForTargetBucket(movedTask, targetBucket.type);
 
     normalizeTaskOrder(sourceBucket);
     normalizeTaskOrder(targetBucket);
@@ -781,6 +800,10 @@ export const ProjectTasksListPage = () => {
     ? project.task_buckets
         .flatMap((bucket) => bucket.tasks)
         .find((task): task is LoadedTask => task.$jazz.id === selectedTaskId && isLoadedTask(task)) ?? null
+    : null;
+
+  const selectedTaskBucket = selectedTaskId
+    ? project.task_buckets.find((bucket) => bucket.tasks.some((task) => task.$jazz.id === selectedTaskId)) ?? null
     : null;
 
   return (
@@ -953,6 +976,11 @@ export const ProjectTasksListPage = () => {
                                       task={task}
                                       bucketId={bucket.$jazz.id}
                                       taskIdPrefix={projectTaskPrefix}
+                                      taskHref={
+                                        orgId && projectId
+                                          ? `/organizations/${orgId}/projects/${projectId}/tasks/${task.$jazz.id}`
+                                          : undefined
+                                      }
                                       onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)}
                                       canMoveUp={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) > 0}
                                       canMoveDown={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) < bucket.tasks.length - 1}
@@ -986,6 +1014,22 @@ export const ProjectTasksListPage = () => {
         task={selectedTask}
         assigneeOptions={assigneeOptions}
         taskIdPrefix={projectTaskPrefix}
+        taskHref={
+          selectedTask && orgId && projectId
+            ? `/organizations/${orgId}/projects/${projectId}/tasks/${selectedTask.$jazz.id}`
+            : undefined
+        }
+        onArchive={() => {
+          if (!selectedTask) return;
+          selectedTask.$jazz.set("status", "Archived");
+        }}
+        onDelete={() => {
+          if (!selectedTask || !selectedTaskBucket) return;
+          const bucket = selectedTaskBucket as any;
+          const nextTasks = bucket.tasks.filter((candidate: any) => candidate.$jazz.id !== selectedTask.$jazz.id);
+          bucket.tasks.$jazz.applyDiff(nextTasks);
+          setSelectedTaskId(null);
+        }}
         onClose={() => setSelectedTaskId(null)}
       />
 

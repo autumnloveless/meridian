@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { co } from "jazz-tools";
 import { useAccount, useCoState } from "jazz-tools/react";
-import { Navigate, useParams } from "react-router";
+import { Link, Navigate, useParams } from "react-router";
 import {
   DndContext,
   DragOverlay,
@@ -99,10 +99,12 @@ function TaskCard({
   task,
   onSelect,
   taskIdPrefix,
+  taskHref,
 }: {
   task: LoadedTask;
   onSelect: (task: LoadedTask) => void;
   taskIdPrefix: string;
+  taskHref?: string;
 }) {
   const sortable = useSortable({ id: taskDndId(task.$jazz.id) });
   const assigneeInitial =
@@ -138,7 +140,17 @@ function TaskCard({
             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
               {task.type}
             </Badge>
-            <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
+            {taskHref ? (
+              <Link
+                to={taskHref}
+                className="text-[10px] font-medium text-sky-700 hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {getTaskDisplayId(task, taskIdPrefix)}
+              </Link>
+            ) : (
+              <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
+            )}
           </div>
 
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
@@ -198,7 +210,7 @@ function DragTaskPreview({ task, taskIdPrefix }: { task: LoadedTask; taskIdPrefi
 }
 
 export const ProjectTasksBoardPage = () => {
-  const { projectId } = useParams();
+  const { orgId, projectId } = useParams();
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -538,7 +550,16 @@ export const ProjectTasksBoardPage = () => {
                       ) : (
                         tasks.map((task) => (
                           <Fragment key={task.$jazz.id}>
-                            <TaskCard task={task} taskIdPrefix={projectTaskPrefix} onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)} />
+                            <TaskCard
+                              task={task}
+                              taskIdPrefix={projectTaskPrefix}
+                              taskHref={
+                                orgId && projectId
+                                  ? `/organizations/${orgId}/projects/${projectId}/tasks/${task.$jazz.id}`
+                                  : undefined
+                              }
+                              onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)}
+                            />
                           </Fragment>
                         ))
                       )}
@@ -559,6 +580,22 @@ export const ProjectTasksBoardPage = () => {
         task={loadedSelectedTask}
         assigneeOptions={assigneeOptions}
         taskIdPrefix={projectTaskPrefix}
+        taskHref={
+          loadedSelectedTask && orgId && projectId
+            ? `/organizations/${orgId}/projects/${projectId}/tasks/${loadedSelectedTask.$jazz.id}`
+            : undefined
+        }
+        onArchive={() => {
+          if (!loadedSelectedTask) return;
+          loadedSelectedTask.$jazz.set("status", "Archived");
+        }}
+        onDelete={() => {
+          if (!loadedSelectedTask || !activeBucket) return;
+          const bucket = activeBucket as any;
+          const nextTasks = bucket.tasks.filter((candidate: any) => candidate.$jazz.id !== loadedSelectedTask.$jazz.id);
+          bucket.tasks.$jazz.applyDiff(nextTasks);
+          setSelectedTaskId(null);
+        }}
         onClose={() => setSelectedTaskId(null)}
       />
     </section>

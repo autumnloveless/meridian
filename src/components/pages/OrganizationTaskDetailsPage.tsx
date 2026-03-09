@@ -1,17 +1,26 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { MoreHorizontal } from "lucide-react";
+import { Group, co } from "jazz-tools";
 import { useCoState } from "jazz-tools/react";
+import { MoreHorizontal } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
-import { useProjectAssigneeOptions } from "@/components/tasks/useProjectAssigneeOptions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ObjectFieldsEditor } from "@/components/ui/object-fields-editor";
-import { Project } from "@/schema";
+import { Account, Organization } from "@/schema";
 import { getTaskDisplayId } from "@/lib/taskIds";
+
+type TaskAssigneeOption = {
+  id: string;
+  name: string;
+  profile: co.loaded<typeof Account, { profile: true }>["profile"];
+};
+
+const canAssignRole = (role: string | undefined) =>
+  role === "reader" || role === "writer" || role === "manager" || role === "admin";
 
 const taskStatuses = [
   "Backlog",
@@ -24,12 +33,13 @@ const taskStatuses = [
 
 const taskTypes = ["Task", "Bug"] as const;
 
-export const ProjectTaskDetailsPage = () => {
-  const { orgId, projectId, taskId } = useParams();
+export const OrganizationTaskDetailsPage = () => {
+  const { orgId, taskId } = useParams();
   const navigate = useNavigate();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [assigneeOptions, setAssigneeOptions] = useState<TaskAssigneeOption[]>([]);
 
-  const project = useCoState(Project, projectId, {
+  const organization = useCoState(Organization, orgId, {
     resolve: {
       task_buckets: {
         $each: {
@@ -44,12 +54,70 @@ export const ProjectTaskDetailsPage = () => {
     },
   });
 
-  const assigneeOptions = useProjectAssigneeOptions(project.$isLoaded ? project : null);
+  const ownerGroup = useCoState(
+    Group,
+    organization.$isLoaded ? organization.$jazz.owner.$jazz.id : undefined,
+  );
+
+  const memberRoleKey = useMemo(() => {
+    if (!ownerGroup.$isLoaded) return "";
+    return ownerGroup.members
+      .map((member) => `${member.id}:${ownerGroup.getRoleOf(member.id) ?? ""}`)
+      .sort((left, right) => left.localeCompare(right))
+      .join("|");
+  }, [ownerGroup.$isLoaded, ownerGroup.$isLoaded ? ownerGroup.members.length : 0]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMembers = async () => {
+      if (!ownerGroup.$isLoaded) {
+        setAssigneeOptions([]);
+        return;
+      }
+
+      const eligibleIds = ownerGroup.members
+        .map((member) => member.id)
+        .filter((memberId) => canAssignRole(ownerGroup.getRoleOf(memberId)));
+
+      if (eligibleIds.length === 0) {
+        setAssigneeOptions([]);
+        return;
+      }
+
+      const loadedAccounts = await Promise.all(
+        eligibleIds.map((memberId) =>
+          Account.load(memberId, { resolve: { profile: true } }).catch(() => null),
+        ),
+      );
+
+      if (cancelled) return;
+
+      const next = loadedAccounts
+        .filter((account): account is co.loaded<typeof Account, { profile: true }> =>
+          Boolean(account && account.$isLoaded && account.profile && account.profile.$isLoaded),
+        )
+        .map((account) => ({
+          id: account.profile.$jazz.id,
+          name: account.profile.name || account.$jazz.id,
+          profile: account.profile,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+
+      setAssigneeOptions(next);
+    };
+
+    void loadMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [memberRoleKey, ownerGroup.$isLoaded]);
 
   const taskWithBucket = useMemo(() => {
-    if (!project.$isLoaded || !taskId) return null;
+    if (!organization.$isLoaded || !taskId) return null;
 
-    const buckets = project.task_buckets.map((bucket) => bucket);
+    const buckets = organization.task_buckets.map((bucket) => bucket);
     for (const bucket of buckets) {
       const task = bucket.tasks.find((candidate: any) => candidate.$jazz.id === taskId);
       if (task) {
@@ -58,7 +126,7 @@ export const ProjectTaskDetailsPage = () => {
     }
 
     return null;
-  }, [project, taskId]);
+  }, [organization, taskId]);
 
   const task = taskWithBucket?.task ?? null;
   const bucket = taskWithBucket?.bucket ?? null;
@@ -82,26 +150,26 @@ export const ProjectTaskDetailsPage = () => {
     ];
   }, [assigneeOptions, selectedAssigneeId, selectedAssigneeName, task]);
 
-  if (!orgId || !projectId || !taskId) {
+  if (!orgId || !taskId) {
     return <div className="text-sm text-red-700">Invalid task URL.</div>;
   }
 
-  if (!project.$isLoaded) {
+  if (!organization.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading task details...</div>;
   }
 
   if (!task || !bucket) {
     return (
       <section className="space-y-3">
-        <p className="text-sm text-muted-foreground">Task not found in this project.</p>
+        <p className="text-sm text-muted-foreground">Task not found in this organization.</p>
         <Button type="button" variant="outline" asChild>
-          <Link to={`/organizations/${orgId}/projects/${projectId}/tasks/list`}>Back to Tasks</Link>
+          <Link to={`/organizations/${orgId}/tasks/list`}>Back to Tasks</Link>
         </Button>
       </section>
     );
   }
 
-  const taskDisplayId = getTaskDisplayId(task, project.project_key);
+  const taskDisplayId = getTaskDisplayId(task, organization.project_key);
 
   return (
     <section className="mx-auto w-full max-w-3xl space-y-4">
@@ -114,7 +182,7 @@ export const ProjectTaskDetailsPage = () => {
 
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" asChild>
-            <Link to={`/organizations/${orgId}/projects/${projectId}/tasks/list`}>Back</Link>
+            <Link to={`/organizations/${orgId}/tasks/list`}>Back</Link>
           </Button>
 
           <DropdownMenu>
@@ -127,7 +195,7 @@ export const ProjectTaskDetailsPage = () => {
               <DropdownMenuItem
                 onSelect={() => {
                   task.$jazz.set("status", "Archived");
-                  navigate(`/organizations/${orgId}/projects/${projectId}/tasks/archive`);
+                  navigate(`/organizations/${orgId}/tasks/archive`);
                 }}
               >
                 Archive
@@ -261,13 +329,14 @@ export const ProjectTaskDetailsPage = () => {
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
         title="Delete task"
-        description="This will permanently remove the task from this project."
+        description="This will permanently remove the task from this organization."
         confirmText="Delete"
         confirmVariant="destructive"
         onConfirm={() => {
-          bucket.tasks.$jazz.remove((candidate: any) => candidate.$jazz.id === task.$jazz.id);
+          const nextTasks = bucket.tasks.filter((candidate: any) => candidate.$jazz.id !== task.$jazz.id);
+          bucket.tasks.$jazz.applyDiff(nextTasks);
           setIsDeleteOpen(false);
-          navigate(`/organizations/${orgId}/projects/${projectId}/tasks/list`);
+          navigate(`/organizations/${orgId}/tasks/list`);
         }}
       />
     </section>

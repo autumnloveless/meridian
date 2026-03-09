@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useAccount, useCoState } from "jazz-tools/react";
 
 import { Account, Organization } from "@/schema";
@@ -235,7 +235,21 @@ export const OrganizationTasksArchivePage = () => {
                       className="border-b border-stone-200 bg-white hover:bg-stone-50"
                       onClick={() => setSelectedTaskId(task.$jazz.id)}
                     >
-                      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, entry.taskKeyPrefix)}</td>
+                      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">
+                        {orgId ? (
+                          <Link
+                            to={entry.projectId
+                              ? `/organizations/${orgId}/projects/${entry.projectId}/tasks/${task.$jazz.id}`
+                              : `/organizations/${orgId}/tasks/${task.$jazz.id}`}
+                            className="hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {getTaskDisplayId(task, entry.taskKeyPrefix)}
+                          </Link>
+                        ) : (
+                          getTaskDisplayId(task, entry.taskKeyPrefix)
+                        )}
+                      </td>
                       <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
                       <td className="w-28 px-1.5 py-1"><ProjectBadge projectName={entry.projectName} /></td>
                       <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</td>
@@ -258,6 +272,22 @@ export const OrganizationTasksArchivePage = () => {
         open={Boolean(selectedTask)}
         task={selectedTask}
         taskIdPrefix={selectedTaskEntry?.taskKeyPrefix}
+        taskHref={orgId && selectedTaskEntry
+          ? (selectedTaskEntry.projectId
+            ? `/organizations/${orgId}/projects/${selectedTaskEntry.projectId}/tasks/${selectedTaskEntry.task.$jazz.id}`
+            : `/organizations/${orgId}/tasks/${selectedTaskEntry.task.$jazz.id}`)
+          : undefined}
+        onArchive={() => {
+          if (!selectedTask) return;
+          selectedTask.$jazz.set("status", "Archived");
+        }}
+        onDelete={() => {
+          if (!selectedTaskEntry) return;
+          const bucket = selectedTaskEntry.bucket as any;
+          const nextTasks = bucket.tasks.filter((candidate: any) => candidate.$jazz.id !== selectedTaskEntry.task.$jazz.id);
+          bucket.tasks.$jazz.applyDiff(nextTasks);
+          setSelectedTaskId(null);
+        }}
         onClose={() => setSelectedTaskId(null)}
       />
 

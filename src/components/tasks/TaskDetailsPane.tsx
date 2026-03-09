@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { co } from "jazz-tools";
+import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ObjectFieldsEditor } from "@/components/ui/object-fields-editor";
 import { Task as TaskSchema } from "@/schema";
 import type { TaskAssigneeOption } from "@/components/tasks/useProjectAssigneeOptions";
 import { getTaskDisplayId } from "@/lib/taskIds";
@@ -15,6 +20,9 @@ type TaskDetailsPaneProps = {
   onClose: () => void;
   assigneeOptions?: TaskAssigneeOption[];
   taskIdPrefix?: string;
+  taskHref?: string;
+  onArchive?: () => void;
+  onDelete?: () => void;
 };
 
 const taskStatuses: LoadedTask["status"][] = [
@@ -28,8 +36,8 @@ const taskStatuses: LoadedTask["status"][] = [
 
 const taskTypes: LoadedTask["type"][] = ["Task", "Bug"];
 
-export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], taskIdPrefix }: TaskDetailsPaneProps) {
-  const [customFieldsDraft, setCustomFieldsDraft] = useState("{}");
+export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], taskIdPrefix, taskHref, onArchive, onDelete }: TaskDetailsPaneProps) {
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -45,27 +53,16 @@ export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], tas
   }, [onClose, open]);
 
   useEffect(() => {
-    if (!task) {
-      setCustomFieldsDraft("{}");
-      return;
+    if (!open) {
+      setIsDeleteConfirmOpen(false);
     }
-
-    setCustomFieldsDraft(JSON.stringify(task.custom_fields, null, 2));
-  }, [task]);
+  }, [open]);
 
   const tagsValue = useMemo(() => (task ? task.tags.join(", ") : ""), [task]);
   const detailsText = useMemo(() => {
     if (!task || !task.details.$isLoaded) return "";
     return task.details.toString();
   }, [task]);
-  const customFieldsError = useMemo(() => {
-    try {
-      JSON.parse(customFieldsDraft || "{}");
-      return null;
-    } catch {
-      return "Invalid JSON";
-    }
-  }, [customFieldsDraft]);
   const selectedAssigneeId = task?.assigned_to?.$isLoaded ? task.assigned_to.$jazz.id : "";
   const selectedAssigneeName = task?.assigned_to?.$isLoaded ? task.assigned_to.name : "Unassigned";
   const assigneeSelectOptions = useMemo(() => {
@@ -102,9 +99,51 @@ export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], tas
             </p>
             <p className="text-xs text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</p>
           </div>
-          <Button type="button" size="sm" variant="outline" onClick={onClose}>
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            {taskHref ? (
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link to={taskHref}>Open page</Link>
+              </Button>
+            ) : null}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="sm" variant="outline" aria-label="Task actions">
+                  <MoreHorizontal className="size-4" />
+                  More
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (onArchive) {
+                      onArchive();
+                    } else {
+                      task.$jazz.set("status", "Archived");
+                    }
+                    onClose();
+                  }}
+                >
+                  Archive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  disabled={!onDelete}
+                  onSelect={() => {
+                    if (!onDelete) return;
+                    setIsDeleteConfirmOpen(true);
+                  }}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button type="button" size="sm" variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
@@ -204,31 +243,34 @@ export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], tas
             />
           </label>
 
-          <label className="block space-y-1">
+          <div className="block space-y-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Custom fields (JSON)</span>
-            <textarea
-              className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
-              value={customFieldsDraft}
-              onChange={(event) => setCustomFieldsDraft(event.target.value)}
+            <ObjectFieldsEditor
+              key={task.$jazz.id}
+              value={task.custom_fields}
+              addLabel="Add custom field"
+              onChange={(nextObject) => {
+                task.$jazz.set("custom_fields", nextObject);
+              }}
             />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-rose-600">{customFieldsError ?? ""}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={Boolean(customFieldsError)}
-                onClick={() => {
-                  const parsed = JSON.parse(customFieldsDraft || "{}");
-                  task.$jazz.set("custom_fields", parsed);
-                }}
-              >
-                Apply JSON
-              </Button>
-            </div>
-          </label>
+          </div>
         </div>
       </aside>
+
+      <ConfirmDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        title="Delete task"
+        description="This will permanently remove the task."
+        confirmText="Delete"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          if (!onDelete) return;
+          onDelete();
+          setIsDeleteConfirmOpen(false);
+          onClose();
+        }}
+      />
     </>
   );
 }
