@@ -334,9 +334,7 @@ export const OrganizationProjectsPage = () => {
   if (!organization.$isLoaded) return <div className="text-sm text-muted-foreground">Loading organization projects...</div>;
 
   const mismatchedOwnerCount = projects.filter((project) => !projectInheritsFromOrganization(project)).length;
-  const ownershipFixLabel = mismatchedOwnerCount > 0
-    ? `Fix Ownership (${mismatchedOwnerCount})`
-    : "Ownership Up To Date";
+  const ownershipFixLabel = `Fix Ownership (${mismatchedOwnerCount})`;
 
   return (
     <section className="space-y-3">
@@ -344,16 +342,18 @@ export const OrganizationProjectsPage = () => {
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Projects</CardTitle>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={requestProjectOwnerMigration}
-              disabled={isMigratingOwners || !canManageOrganization}
-              title={!canManageOrganization ? "Requires organization manager/admin access" : undefined}
-              className="w-full sm:w-auto"
-            >
-              {isMigratingOwners ? "Migrating..." : ownershipFixLabel}
-            </Button>
+            {mismatchedOwnerCount > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={requestProjectOwnerMigration}
+                disabled={isMigratingOwners || !canManageOrganization}
+                title={!canManageOrganization ? "Requires organization manager/admin access" : undefined}
+                className="w-full sm:w-auto"
+              >
+                {isMigratingOwners ? "Migrating..." : ownershipFixLabel}
+              </Button>
+            ) : null}
             <Button type="button" onClick={() => setIsCreateProjectOpen(true)} className="w-full sm:w-auto">
               Create Project
             </Button>

@@ -134,18 +134,77 @@ export const AppBreadcrumbs = () => {
     params.testResultId,
   ]);
 
+  const mobileCrumbs = useMemo(() => {
+    const sectionKinds = new Set([
+      "overview",
+      "projects",
+      "tasks",
+      "people",
+      "docs",
+      "requirements",
+      "tests",
+      "test-results",
+      "settings",
+      "tags",
+      "list",
+      "board",
+      "archive",
+    ]);
+
+    const orgCrumb = crumbs.find((crumb) => crumb.kind === "org");
+    const projectCrumb = crumbs.find((crumb) => crumb.kind === "project");
+
+    if (projectCrumb) {
+      const projectIndex = crumbs.findIndex((crumb) => crumb.kind === "project");
+      const subpage = crumbs.slice(projectIndex + 1).find((crumb) => sectionKinds.has(crumb.kind));
+      const projectRootTarget = orgCrumb ? `${orgCrumb.to}/projects` : "/organizations";
+
+      const result: Crumb[] = [
+        { label: "Project", to: projectRootTarget, kind: "project-root" },
+        { label: projectCrumb.label, to: `${projectCrumb.to}/overview`, kind: "project" },
+      ];
+
+      if (subpage && subpage.kind !== "overview") {
+        result.push(subpage);
+      }
+
+      return result;
+    }
+
+    if (orgCrumb) {
+      const orgIndex = crumbs.findIndex((crumb) => crumb.kind === "org");
+      const subpage = crumbs.slice(orgIndex + 1).find((crumb) => sectionKinds.has(crumb.kind));
+
+      const result: Crumb[] = [
+        { label: "Org", to: "/organizations", kind: "org-root" },
+        { label: orgCrumb.label, to: orgCrumb.to, kind: "org" },
+      ];
+
+      if (subpage && subpage.kind !== "overview") {
+        result.push(subpage);
+      }
+
+      return result;
+    }
+
+    if (crumbs.length <= 2) {
+      return crumbs;
+    }
+
+    return [crumbs[0], crumbs[crumbs.length - 1]];
+  }, [crumbs]);
+
   if (crumbs.length === 0) return null;
 
   return (
     <Breadcrumb className="w-full min-w-0">
-      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {crumbs.map((crumb, index) => {
-          const isLast = index === crumbs.length - 1;
-          const isMiddleCrumb = index > 0 && !isLast;
+      <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-0.5 sm:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {mobileCrumbs.map((crumb, index) => {
+          const isLast = index === mobileCrumbs.length - 1;
 
           return (
-            <Fragment key={crumb.to}>
-              <BreadcrumbItem className={isMiddleCrumb ? "hidden min-w-0 shrink sm:flex" : "min-w-0 shrink"}>
+            <Fragment key={`mobile-${crumb.to}-${index}`}>
+              <BreadcrumbItem className="min-w-0 shrink">
                 {isLast ? (
                   <BreadcrumbPage>
                     <span className="min-w-0 shrink max-w-[min(30ch,55vw)] truncate">
@@ -160,11 +219,34 @@ export const AppBreadcrumbs = () => {
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-              {!isLast ? (
-                <BreadcrumbSeparator
-                  className={isMiddleCrumb ? "hidden text-muted-foreground/70 sm:flex" : "text-muted-foreground/70"}
-                />
-              ) : null}
+              {!isLast ? <BreadcrumbSeparator className="text-muted-foreground/70" /> : null}
+            </Fragment>
+          );
+        })}
+      </BreadcrumbList>
+
+      <BreadcrumbList className="hidden min-w-0 flex-nowrap overflow-x-auto py-0.5 sm:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
+
+          return (
+            <Fragment key={crumb.to}>
+              <BreadcrumbItem className="min-w-0 shrink">
+                {isLast ? (
+                  <BreadcrumbPage>
+                    <span className="min-w-0 shrink max-w-[min(30ch,55vw)] truncate">
+                      {crumb.label}
+                    </span>
+                  </BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    <Link to={crumb.to} className="inline-flex min-w-0 shrink max-w-[min(30ch,55vw)] truncate">
+                      {crumb.label}
+                    </Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+              {!isLast ? <BreadcrumbSeparator className="text-muted-foreground/70" /> : null}
             </Fragment>
           );
         })}

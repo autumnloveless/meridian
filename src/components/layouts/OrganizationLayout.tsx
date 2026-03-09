@@ -157,7 +157,7 @@ export const OrganizationLayout = () => {
   );
 
   return (
-    <section className="relative grid h-full min-h-0 w-full grid-cols-1 gap-3 bg-muted/20 p-3 md:grid-cols-[260px_minmax(0,1fr)] md:gap-4 md:p-4">
+    <section className="grid h-full min-h-0 w-full grid-cols-1 gap-3 bg-muted/20 p-3 md:grid-cols-[260px_minmax(0,1fr)] md:gap-4 md:p-4">
       <div className="md:hidden">
         <Button
           type="button"
@@ -171,7 +171,7 @@ export const OrganizationLayout = () => {
       </div>
 
       {isMobileNavOpen ? (
-        <div className="absolute inset-0 z-20 md:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-[calc(3.5rem+env(safe-area-inset-top))] z-40 md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/35"

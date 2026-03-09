@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Menu, Pin, X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,85 @@ export const Header = () => {
     setIsProjectsMenuOpen(false);
   };
 
+  const mobileMenu = isMobileMenuOpen ? (
+    <div
+      className="fixed inset-x-0 bottom-0 top-[calc(3.5rem+env(safe-area-inset-top))] z-40 sm:hidden"
+      aria-hidden={!isMobileMenuOpen}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/35"
+        aria-label="Close navigation menu"
+        onClick={closeMobileMenu}
+      />
+      <div
+        id="mobile-nav-menu"
+        className="absolute inset-0 overflow-y-auto border-t border-border/70 bg-background px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
+      >
+        <nav aria-label="Primary mobile" className="mx-auto flex w-full max-w-6xl flex-col gap-2">
+          {topLevelNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={closeMobileMenu}
+              className={({ isActive }) =>
+                cn(
+                  "rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+
+          {organizationEntries.length > 0 ? (
+            <div className="rounded-md border border-border/70 px-3 py-2">
+              <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Organizations</p>
+              <div className="flex flex-col gap-1">
+                {organizationEntries.map((organization) => (
+                  <Link
+                    key={organization.id}
+                    to={`/organizations/${organization.id}/overview`}
+                    onClick={closeMobileMenu}
+                    className="rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {organization.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {projectEntries.length > 0 ? (
+            <div className="rounded-md border border-border/70 px-3 py-2">
+              <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Recent Projects</p>
+              <div className="flex flex-col gap-1">
+                {projectEntries.map((project) => (
+                  <Link
+                    key={project.id}
+                    to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
+                    onClick={closeMobileMenu}
+                    className="group rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <div className="flex flex-col">
+                      <span>{project.name}</span>
+                      <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus:text-foreground">
+                        {project.orgName}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </nav>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <header
       className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md"
@@ -387,84 +467,7 @@ export const Header = () => {
         </div>
       )}
 
-      {isMobileMenuOpen ? (
-        <div
-          className="fixed inset-x-0 bottom-0 top-[calc(3.5rem+env(safe-area-inset-top))] z-40 sm:hidden"
-          aria-hidden={!isMobileMenuOpen}
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/35"
-            aria-label="Close navigation menu"
-            onClick={closeMobileMenu}
-          />
-          <div
-            id="mobile-nav-menu"
-            className="absolute inset-0 overflow-y-auto border-t border-border/70 bg-background px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
-          >
-            <nav aria-label="Primary mobile" className="mx-auto flex w-full max-w-6xl flex-col gap-2">
-              {topLevelNavItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  className={({ isActive }) =>
-                    cn(
-                      "rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-
-              {organizationEntries.length > 0 ? (
-                <div className="rounded-md border border-border/70 px-3 py-2">
-                  <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Organizations</p>
-                  <div className="flex flex-col gap-1">
-                    {organizationEntries.map((organization) => (
-                      <Link
-                        key={organization.id}
-                        to={`/organizations/${organization.id}/overview`}
-                        onClick={closeMobileMenu}
-                        className="rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        {organization.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {projectEntries.length > 0 ? (
-                <div className="rounded-md border border-border/70 px-3 py-2">
-                  <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Recent Projects</p>
-                  <div className="flex flex-col gap-1">
-                    {projectEntries.map((project) => (
-                      <Link
-                        key={project.id}
-                        to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
-                        onClick={closeMobileMenu}
-                        className="group rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <div className="flex flex-col">
-                          <span>{project.name}</span>
-                          <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus:text-foreground">
-                            {project.orgName}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </nav>
-          </div>
-        </div>
-      ) : null}
+      {typeof document !== "undefined" && mobileMenu ? createPortal(mobileMenu, document.body) : null}
     </header>
   );
 };
