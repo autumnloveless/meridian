@@ -57,7 +57,7 @@ export const ProjectLayout = () => {
                     cn(
                       buttonVariants({ variant: "ghost" }),
                       "w-full justify-start",
-                      isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+                      isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
                     )
                   }
                 >
@@ -74,7 +74,7 @@ export const ProjectLayout = () => {
                           cn(
                             buttonVariants({ variant: "ghost" }),
                             "h-8 w-full justify-start px-2 text-xs",
-                            isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+                            isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
                           )
                         }
                       >
@@ -94,7 +94,7 @@ export const ProjectLayout = () => {
                 cn(
                   buttonVariants({ variant: "ghost" }),
                   "w-full justify-start",
-                  isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+                  isActive ? activeNavItemClass : "text-muted-foreground"
                 )
               }
             >

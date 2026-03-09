@@ -56,7 +56,10 @@ export const Task = co.map({
   details: co.richText(),
   custom_fields: z.object(),
   order: z.int(),
-  type: z.enum(["Bug", "Task"])
+  type: z.enum(["Bug", "Task"]),
+  tags: z.array(z.string()) 
+}).withMigration((task) => {
+  if (!task.$jazz.has("tags")) { task.$jazz.set("tags", []) }
 })
 
 export const TaskBucket = co.map({

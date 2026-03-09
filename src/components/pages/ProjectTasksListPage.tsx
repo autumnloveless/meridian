@@ -17,10 +17,9 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { ChevronDown, GripVertical, MoreHorizontal, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Account, Project, Task, TaskBucket } from "@/schema";
 
@@ -75,22 +74,38 @@ function TaskRow({ task, bucketId }: { task: Task; bucketId: string }) {
     <tr
       ref={sortable.setNodeRef}
       style={style}
-      className="border-b bg-background hover:bg-muted/30"
+      className="border-b border-stone-200 bg-white hover:bg-stone-50"
     >
-      <td className="w-10 px-2 py-1.5 align-middle">
+      <td className="w-9 px-1.5 py-1 align-middle">
         <button
           type="button"
           aria-label={`Drag ${task.summary}`}
-          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+          className="inline-flex h-4 w-4 items-center justify-center rounded text-stone-500 hover:bg-stone-100"
           {...sortable.attributes}
           {...sortable.listeners}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3.5 w-3.5" />
         </button>
       </td>
-      <td className="w-24 px-2 py-1.5 text-xs text-muted-foreground">{task.type}</td>
-      <td className="px-2 py-1.5 text-sm text-foreground">{task.summary}</td>
-      <td className="w-36 px-2 py-1.5 text-xs text-muted-foreground">{task.status}</td>
+      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</td>
+      <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
+      <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
+        {task.tags.length > 0 ? (
+          <span className="inline-flex rounded bg-stone-200 px-1.5 py-0.5 text-stone-700">
+            {task.tags[0]}
+          </span>
+        ) : (
+          <span className="text-stone-400">-</span>
+        )}
+      </td>
+      <td className="w-28 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+        {task.status}
+      </td>
+      <td className="w-12 px-1.5 py-1 text-right text-stone-500">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+          {(task.assigned_to?.name?.[0] ?? "?").toUpperCase()}
+        </span>
+      </td>
     </tr>
   );
 }
@@ -116,12 +131,16 @@ function BucketBody({
 
 function DragTaskPreview({ task }: { task: Task }) {
   return (
-    <div className="w-[520px] max-w-[90vw] rounded-md border bg-background px-3 py-2 text-sm shadow-lg">
-      <div className="grid grid-cols-[24px_96px_minmax(0,1fr)_140px] items-center gap-2">
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{task.type}</span>
-        <span className="truncate text-foreground">{task.summary}</span>
-        <span className="text-xs text-muted-foreground">{task.status}</span>
+    <div className="w-[760px] max-w-[94vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
+      <div className="grid grid-cols-[20px_96px_minmax(0,1fr)_88px_96px_40px] items-center gap-1.5">
+        <GripVertical className="h-3.5 w-3.5 text-stone-500" />
+        <span className="text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+        <span className="truncate text-[13px] text-stone-800">{task.summary}</span>
+        <span className="text-[10px] font-semibold uppercase text-stone-600">{task.tags[0] ?? "-"}</span>
+        <span className="text-[10px] font-semibold uppercase text-stone-600">{task.status}</span>
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+          {(task.assigned_to?.name?.[0] ?? "?").toUpperCase()}
+        </span>
       </div>
     </div>
   );
@@ -130,7 +149,7 @@ function DragTaskPreview({ task }: { task: Task }) {
 function InsertionIndicatorRow() {
   return (
     <tr>
-      <td colSpan={4} className="px-2 py-0">
+      <td colSpan={6} className="px-1.5 py-0">
         <div className="h-0.5 w-full rounded bg-primary" />
       </td>
     </tr>
@@ -144,6 +163,9 @@ export const ProjectTasksListPage = () => {
   const [draftTasksByBucketId, setDraftTasksByBucketId] = useState<Record<string, DraftTask>>({});
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [ticketTypeFilter, setTicketTypeFilter] = useState<"All" | TaskType>("All");
+  const [collapsedBucketIds, setCollapsedBucketIds] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -214,6 +236,22 @@ export const ProjectTasksListPage = () => {
 
   const bucketTypeToTaskStatus = (bucketType: BucketType): Task["status"] =>
     bucketType === "Active" ? "In Progress" : "Backlog";
+
+  const getTaskKey = (task: Task) => `NUC-${Math.max(task.order, 1)}`;
+
+  const isBucketCollapsed = (bucketId: string) => collapsedBucketIds.has(bucketId);
+
+  const toggleBucketCollapsed = (bucketId: string) => {
+    setCollapsedBucketIds((current) => {
+      const next = new Set(current);
+      if (next.has(bucketId)) {
+        next.delete(bucketId);
+      } else {
+        next.add(bucketId);
+      }
+      return next;
+    });
+  };
 
   const getDraftTask = (bucketId: string): DraftTask =>
     draftTasksByBucketId[bucketId] ?? defaultDraftTask;
@@ -327,6 +365,7 @@ export const ProjectTasksListPage = () => {
         details: co.richText().create(""),
         custom_fields: {},
         order: bucket.tasks.length + 1,
+        tags: [],
       })
     );
 
@@ -473,9 +512,19 @@ export const ProjectTasksListPage = () => {
     const isCustom = bucket.type === "Custom";
     const customIndex = customBuckets.findIndex((item) => item.$jazz.id === bucket.$jazz.id);
     const isEditing = editingBucketId === bucket.$jazz.id;
+    const collapsed = isBucketCollapsed(bucket.$jazz.id);
+    const taskTypeCounts = bucket.tasks.reduce(
+      (counts, task) => {
+        const normalizedType = String((task as { type?: string }).type ?? "").toLowerCase();
+        if (normalizedType === "task") counts.task += 1;
+        if (normalizedType === "bug") counts.bug += 1;
+        return counts;
+      },
+      { task: 0, bug: 0 }
+    );
 
     return (
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5">
         {isEditing ? (
           <div className="flex w-full items-center gap-2">
             <Input
@@ -496,14 +545,38 @@ export const ProjectTasksListPage = () => {
             </Button>
           </div>
         ) : (
-          <CardTitle>{bucket.name}</CardTitle>
+          <button
+            type="button"
+            className="flex items-center gap-2 text-xs text-stone-600 hover:text-stone-900"
+            onClick={() => toggleBucketCollapsed(bucket.$jazz.id)}
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} bucket ${bucket.name}`}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`} />
+            <span className="font-semibold text-stone-800">{bucket.name}</span>
+            <span>{`${bucket.tasks.length} issue${bucket.tasks.length === 1 ? "" : "s"}`}</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-semibold text-sky-700">
+                {taskTypeCounts.task}
+              </span>
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-100 px-1 text-[10px] font-semibold text-red-700">
+                {taskTypeCounts.bug}
+              </span>
+            </span>
+          </button>
         )}
 
         {!isEditing ? (
           <div className="ml-auto flex items-center gap-1">
             {bucket.type === "Backlog" ? (
-              <Button size="sm" onClick={createCustomBucket}>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={createCustomBucket}>
                 Create new bucket
+              </Button>
+            ) : null}
+
+            {bucket.type !== "Backlog" ? (
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-stone-600">
+                Archive completed tasks
               </Button>
             ) : null}
 
@@ -512,6 +585,7 @@ export const ProjectTasksListPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="h-7 text-xs"
                   onClick={() => moveCustomBucket(bucket.$jazz.id, "up")}
                   disabled={customIndex <= 0}
                   aria-label={`Move ${bucket.name} up`}
@@ -521,6 +595,7 @@ export const ProjectTasksListPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="h-7 text-xs"
                   onClick={() => moveCustomBucket(bucket.$jazz.id, "down")}
                   disabled={customIndex < 0 || customIndex >= customBuckets.length - 1}
                   aria-label={`Move ${bucket.name} down`}
@@ -530,6 +605,7 @@ export const ProjectTasksListPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="h-7 text-xs"
                   onClick={() => startEditBucket(bucket.$jazz.id, bucket.name)}
                 >
                   Edit
@@ -537,12 +613,17 @@ export const ProjectTasksListPage = () => {
                 <Button
                   size="sm"
                   variant="destructive"
+                  className="h-7 text-xs"
                   onClick={() => removeCustomBucket(bucket.$jazz.id)}
                 >
                   Delete
                 </Button>
               </>
             ) : null}
+
+            <Button size="sm" variant="ghost" className="h-7 w-7 px-0 text-stone-600" aria-label="More actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
           </div>
         ) : null}
       </div>
@@ -556,9 +637,30 @@ export const ProjectTasksListPage = () => {
     : null;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Backlog</h2>
+        <h2 className="text-xl font-semibold text-stone-900">Backlog</h2>
+        <div className="font-[Inter] mt-2 flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+          <div className="relative w-full max-w-[220px]">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
+            <Input
+              className="h-7 border-stone-300 pl-7 text-xs"
+              placeholder="Search by summary, key, assignee"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+          <select
+            className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
+            value={ticketTypeFilter}
+            onChange={(event) => setTicketTypeFilter(event.target.value as "All" | TaskType)}
+            aria-label="Filter by ticket type"
+          >
+            <option value="All">All types</option>
+            <option value="Task">Task</option>
+            <option value="Bug">Bug</option>
+          </select>
+        </div>
       </div>
 
       <DndContext
@@ -569,97 +671,126 @@ export const ProjectTasksListPage = () => {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="space-y-4">
+        <div className="space-y-3 font-[Inter]">
           {orderedBuckets.map((bucket) => {
-            const taskIds = bucket.tasks.map((task) => taskDndId(task.$jazz.id));
+            const normalizedQuery = searchQuery.trim().toLowerCase();
+            const filteredTasks = bucket.tasks.filter((task) => {
+              if (ticketTypeFilter !== "All" && task.type !== ticketTypeFilter) {
+                return false;
+              }
+
+              if (!normalizedQuery) return true;
+
+              const keyText = getTaskKey(task).toLowerCase();
+              const summaryText = task.summary.toLowerCase();
+              const assigneeText = (task.assigned_to?.name ?? "").toLowerCase();
+
+              return (
+                summaryText.includes(normalizedQuery) ||
+                keyText.includes(normalizedQuery) ||
+                assigneeText.includes(normalizedQuery)
+              );
+            });
+
+            const taskIds = filteredTasks.map((task) => taskDndId(task.$jazz.id));
             const draftTask = getDraftTask(bucket.$jazz.id);
+            const collapsed = isBucketCollapsed(bucket.$jazz.id);
             const indicatorIndex =
               dropIndicator && dropIndicator.bucketId === bucket.$jazz.id
                 ? dropIndicator.index
                 : null;
 
             return (
-              <Card key={bucket.$jazz.id} size="sm" className="!gap-0">
-                <CardHeader className="border-b">{renderBucketHeader(bucket)}</CardHeader>
+              <div key={bucket.$jazz.id} className="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                <div className="border-b border-stone-200 bg-stone-100">
+                  {renderBucketHeader(bucket)}
+                </div>
 
-                <CardContent className="!p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full table-fixed border-collapse text-sm">
-                      <thead className="bg-muted/40 text-xs uppercase tracking-[0.08em] text-muted-foreground">
-                        <tr>
-                          <th className="w-10 px-2 py-1.5 text-left">Drag</th>
-                          <th className="w-24 px-2 py-1.5 text-left">Type</th>
-                          <th className="px-2 py-1.5 text-left">Summary</th>
-                          <th className="w-36 px-2 py-1.5 text-left">Status</th>
-                        </tr>
-                      </thead>
+                {!collapsed ? (
+                  <div className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-fixed border-collapse text-sm">
+                        <thead className="bg-stone-100 text-[10px] uppercase tracking-[0.07em] text-stone-600">
+                          <tr>
+                            <th className="w-9 px-1.5 py-1 text-left" />
+                            <th className="w-28 px-1.5 py-1 text-left">Key</th>
+                            <th className="px-1.5 py-1 text-left">Summary</th>
+                            <th className="w-24 px-1.5 py-1 text-left">Tag</th>
+                            <th className="w-28 px-1.5 py-1 text-left">Status</th>
+                            <th className="w-12 px-1.5 py-1 text-right">Asg</th>
+                          </tr>
+                        </thead>
 
-                      <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-                        <BucketBody bucketId={bucket.$jazz.id}>
-                          {bucket.tasks.length === 0 && indicatorIndex === null ? (
-                            <tr>
-                              <td colSpan={4} className="px-3 py-3 text-sm text-muted-foreground">
-                                No tasks in this bucket.
-                              </td>
-                            </tr>
-                          ) : (
-                            <>
-                              {bucket.tasks.map((task, index) => (
-                                <Fragment key={task.$jazz.id}>
-                                  {indicatorIndex === index ? <InsertionIndicatorRow /> : null}
-                                  <TaskRow task={task} bucketId={bucket.$jazz.id} />
-                                </Fragment>
-                              ))}
-                              {indicatorIndex === bucket.tasks.length ? <InsertionIndicatorRow /> : null}
-                            </>
-                          )}
-                        </BucketBody>
-                      </SortableContext>
-                    </table>
-                  </div>
+                        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+                          <BucketBody bucketId={bucket.$jazz.id}>
+                            {filteredTasks.length === 0 && indicatorIndex === null ? (
+                              <tr>
+                                <td colSpan={6} className="px-2 py-2 text-xs text-stone-500">
+                                  No tasks in this bucket.
+                                </td>
+                              </tr>
+                            ) : (
+                              <>
+                                {filteredTasks.map((task, index) => (
+                                  <Fragment key={task.$jazz.id}>
+                                    {indicatorIndex === index ? <InsertionIndicatorRow /> : null}
+                                    <TaskRow task={task} bucketId={bucket.$jazz.id} />
+                                  </Fragment>
+                                ))}
+                                {indicatorIndex === filteredTasks.length ? <InsertionIndicatorRow /> : null}
+                              </>
+                            )}
+                          </BucketBody>
+                        </SortableContext>
+                      </table>
+                    </div>
 
-                  <div className="flex items-center gap-2 border-t px-3 py-3">
-                    <select
-                      value={draftTask.taskType}
-                      onChange={(event) =>
-                        setDraftTask(bucket.$jazz.id, {
-                          ...draftTask,
-                          taskType: event.target.value as TaskType,
-                        })
-                      }
-                      className="h-9 rounded-md border border-stone-300 bg-white px-2 text-sm text-stone-900"
-                      aria-label={`Task type for ${bucket.name}`}
-                    >
-                      <option value="Task">Task</option>
-                      <option value="Bug">Bug</option>
-                    </select>
-
-                    <Input
-                      value={draftTask.summary}
-                      onChange={(event) =>
-                        setDraftTask(bucket.$jazz.id, {
-                          ...draftTask,
-                          summary: event.target.value,
-                        })
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          createTaskInBucket(bucket.$jazz.id);
+                    <div className="flex items-center gap-2 border-t border-stone-200 bg-stone-50 px-2 py-1.5">
+                      <select
+                        value={draftTask.taskType}
+                        onChange={(event) =>
+                          setDraftTask(bucket.$jazz.id, {
+                            ...draftTask,
+                            taskType: event.target.value as TaskType,
+                          })
                         }
-                      }}
-                      placeholder="Add task"
-                      aria-label={`New task name for ${bucket.name}`}
-                    />
+                        className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+                        aria-label={`Task type for ${bucket.name}`}
+                      >
+                        <option value="Task">Task</option>
+                        <option value="Bug">Bug</option>
+                      </select>
 
-                    <Button
-                      onClick={() => createTaskInBucket(bucket.$jazz.id)}
-                      disabled={!profile || !draftTask.summary.trim()}
-                    >
-                      Add
-                    </Button>
+                      <Input
+                        className="h-7 text-xs"
+                        value={draftTask.summary}
+                        onChange={(event) =>
+                          setDraftTask(bucket.$jazz.id, {
+                            ...draftTask,
+                            summary: event.target.value,
+                          })
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            createTaskInBucket(bucket.$jazz.id);
+                          }
+                        }}
+                        placeholder="Create issue"
+                        aria-label={`New task name for ${bucket.name}`}
+                      />
+
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => createTaskInBucket(bucket.$jazz.id)}
+                        disabled={!profile || !draftTask.summary.trim()}
+                      >
+                        Create issue
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                ) : null}
+              </div>
             );
           })}
         </div>
