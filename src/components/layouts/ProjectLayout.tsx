@@ -1,13 +1,14 @@
 import { useEffect, useMemo } from "react";
-import { NavLink, Outlet, useLocation, useParams } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useAccount, useCoState } from "jazz-tools/react";
+import { ArrowLeft } from "lucide-react";
 
 import { Account, Organization, Project } from "@/schema";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DocsNavSection } from "@/components/docs/DocsNavSection";
 import { cn } from "@/lib/utils";
-import { getProjectBasePath } from "@/lib/projectPaths";
+import { getOrganizationBasePath, getProjectBasePath } from "@/lib/projectPaths";
 
 const projectNavItems = [
   { to: "overview", label: "Overview" },
@@ -30,7 +31,7 @@ export const ProjectLayout = () => {
 
   const project = useCoState(Project, projectId, {
     resolve: {
-      documents: { $each: true },
+      documents: { $each: { $onError: "catch" } },
     },
   });
 
@@ -47,6 +48,11 @@ export const ProjectLayout = () => {
     if (!projectId || !orgId) return "";
     return getProjectBasePath(projectId, orgId);
   }, [orgId, projectId]);
+
+  const organizationBasePath = useMemo(() => {
+    if (!orgId) return "";
+    return getOrganizationBasePath(orgId);
+  }, [orgId]);
 
   useEffect(() => {
     if (!account.$isLoaded || !project.$isLoaded || !projectId) return;
@@ -101,8 +107,23 @@ export const ProjectLayout = () => {
     <section className="grid min-h-[calc(100vh-4.5rem)] grid-cols-1 gap-4 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
       <Card className="h-full">
         <CardHeader className="border-b">
+          {organizationSubtitle && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Link
+                to={`${organizationBasePath}/overview`}
+                className={cn(buttonVariants({ variant: "ghost" }), "h-auto px-1.5 py-0.5 text-xs")}
+              >
+                <ArrowLeft className="size-3" />
+                Back
+              </Link>
+            </div>
+          )}
           <CardTitle className="truncate text-lg">{projectTitle}</CardTitle>
-          {organizationSubtitle && <p className="text-xs text-muted-foreground">{organizationSubtitle}</p>}
+          {organizationSubtitle && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="truncate">{organizationSubtitle}</span>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="flex h-full flex-col gap-2">

@@ -30,7 +30,7 @@ export const OrganizationLayout = () => {
   const organization = useCoState(Organization, orgId, {
     resolve: {
       documents: {
-        $each: true,
+        $each: { $onError: "catch" },
       },
     },
   });

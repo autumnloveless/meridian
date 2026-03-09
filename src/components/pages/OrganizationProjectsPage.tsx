@@ -8,6 +8,7 @@ import { Account, Document, Organization, Person, Project, Requirement, Task, Ta
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/components/dialogs/CreateProjectDialog";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import { getProjectBasePath } from "@/lib/projectPaths";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -25,6 +26,9 @@ export const OrganizationProjectsPage = () => {
 
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isMigratingOwners, setIsMigratingOwners] = useState(false);
+  const [isMigrationConfirmOpen, setIsMigrationConfirmOpen] = useState(false);
+  const [migrationNotice, setMigrationNotice] = useState<{ title: string; description: string } | null>(null);
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<{ id: string; name: string } | null>(null);
 
   const projects = useMemo(() => {
     if (!organization.$isLoaded) return [];
@@ -136,21 +140,18 @@ export const OrganizationProjectsPage = () => {
   const migrateProjectOwnersToOrganization = async () => {
     if (!organization.$isLoaded) return;
     if (!me) {
-      window.alert("Please wait for your profile to load before running ownership migration.");
+      setMigrationNotice({
+        title: "Profile still loading",
+        description: "Please wait for your profile to load before running ownership migration.",
+      });
       return;
     }
 
-    const orgOwnerId = organization.$jazz.owner.$jazz.id;
-    const mismatched = organization.projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId);
-    if (mismatched.length === 0) return;
-
-    const confirmed = window.confirm(
-      `Migrate ${mismatched.length} project${mismatched.length === 1 ? "" : "s"} to the organization owner group? This performs a copy and swap to preserve data.`
-    );
-    if (!confirmed) return;
-
     setIsMigratingOwners(true);
     try {
+      const orgOwnerId = organization.$jazz.owner.$jazz.id;
+      const mismatched = organization.projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId);
+
       for (const projectRef of mismatched) {
         const source = await Project.load(projectRef.$jazz.id, {
           resolve: {
@@ -236,10 +237,24 @@ export const OrganizationProjectsPage = () => {
         }
       }
 
-      window.alert("Project ownership migration complete.");
+      setMigrationNotice({
+        title: "Migration complete",
+        description: "Project ownership migration finished successfully.",
+      });
     } finally {
       setIsMigratingOwners(false);
+      setIsMigrationConfirmOpen(false);
     }
+  };
+
+  const requestProjectOwnerMigration = () => {
+    if (!organization.$isLoaded) return;
+
+    const orgOwnerId = organization.$jazz.owner.$jazz.id;
+    const mismatched = organization.projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId);
+    if (mismatched.length === 0) return;
+
+    setIsMigrationConfirmOpen(true);
   };
 
   const renameProject = (projectId: string) => {
@@ -254,16 +269,20 @@ export const OrganizationProjectsPage = () => {
     project.$jazz.set("name", nextName);
   };
 
-  const deleteProject = (projectId: string) => {
+  const requestDeleteProject = (projectId: string) => {
     if (!organization.$isLoaded) return;
 
     const project = organization.projects.find((candidate) => candidate.$jazz.id === projectId);
     if (!project) return;
 
-    const confirmed = window.confirm(`Delete project \"${project.name}\"?`);
-    if (!confirmed) return;
+    setPendingDeleteProject({ id: projectId, name: project.name });
+  };
 
-    organization.projects.$jazz.remove((candidate) => candidate.$jazz.id === projectId);
+  const confirmDeleteProject = () => {
+    if (!organization.$isLoaded || !pendingDeleteProject) return;
+
+    organization.projects.$jazz.remove((candidate) => candidate.$jazz.id === pendingDeleteProject.id);
+    setPendingDeleteProject(null);
   };
 
   if (!orgId) return <div className="text-sm text-red-700">Invalid organization URL.</div>;
@@ -279,7 +298,7 @@ export const OrganizationProjectsPage = () => {
           <CardTitle>Projects</CardTitle>
           <div className="flex items-center gap-2">
             {mismatchedOwnerCount > 0 && (
-              <Button type="button" variant="outline" onClick={() => void migrateProjectOwnersToOrganization()} disabled={isMigratingOwners}>
+              <Button type="button" variant="outline" onClick={requestProjectOwnerMigration} disabled={isMigratingOwners}>
                 {isMigratingOwners ? "Migrating..." : `Fix Ownership (${mismatchedOwnerCount})`}
               </Button>
             )}
@@ -312,7 +331,7 @@ export const OrganizationProjectsPage = () => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onSelect={() => deleteProject(project.$jazz.id)}
+                          onSelect={() => requestDeleteProject(project.$jazz.id)}
                           className="text-destructive focus:text-destructive"
                         >
                           Delete project
@@ -328,6 +347,40 @@ export const OrganizationProjectsPage = () => {
       </Card>
 
       <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} onSubmit={createProject} />
+
+      <ConfirmDialog
+        open={isMigrationConfirmOpen}
+        onOpenChange={setIsMigrationConfirmOpen}
+        title="Migrate project ownership"
+        description={`Migrate ${mismatchedOwnerCount} project${mismatchedOwnerCount === 1 ? "" : "s"} to the organization owner group? This performs a copy and swap to preserve data.`}
+        confirmText={isMigratingOwners ? "Migrating..." : "Run migration"}
+        onConfirm={() => void migrateProjectOwnersToOrganization()}
+        isConfirmDisabled={isMigratingOwners}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteProject}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteProject(null);
+        }}
+        title="Delete project"
+        description={pendingDeleteProject ? `Delete project \"${pendingDeleteProject.name}\"?` : undefined}
+        confirmText="Delete"
+        confirmVariant="destructive"
+        onConfirm={confirmDeleteProject}
+      />
+
+      <ConfirmDialog
+        open={!!migrationNotice}
+        onOpenChange={(open) => {
+          if (!open) setMigrationNotice(null);
+        }}
+        title={migrationNotice?.title ?? "Notice"}
+        description={migrationNotice?.description}
+        confirmText="OK"
+        showCancel={false}
+        onConfirm={() => setMigrationNotice(null)}
+      />
     </section>
   );
 };
