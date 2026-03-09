@@ -25,8 +25,8 @@ const formatAbsoluteTimestamp = (value: number) => {
   return absoluteDateFormatter.format(new Date(value));
 };
 
-const formatRelativeTimestamp = (value: number) => {
-  const diffMs = value - Date.now();
+const formatRelativeTimestamp = (value: number, now: number) => {
+  const diffMs = value - now;
   const diffMinutes = Math.round(diffMs / 60000);
   if (Math.abs(diffMinutes) < 60) {
     return relativeTimeFormatter.format(diffMinutes, "minute");
@@ -52,6 +52,7 @@ export const ProjectDocDetailsPage = () => {
   const [lastSavedContent, setLastSavedContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const latestTitleRef = useRef("");
   const latestContentRef = useRef("");
@@ -157,8 +158,21 @@ export const ProjectDocDetailsPage = () => {
     return () => window.clearTimeout(timeout);
   }, [document, draftContent, lastSavedContent, saveContent]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   if (!docId) return <div className="text-sm text-red-700">Invalid document URL.</div>;
   if (!document.$isLoaded) return <div className="text-sm text-muted-foreground">Loading document...</div>;
+
+  const contentUpdatedAt = document.content.$isLoaded
+    ? document.content.$jazz.lastUpdatedAt
+    : document.$jazz.lastUpdatedAt;
+  const effectiveUpdatedAt = Math.max(document.$jazz.lastUpdatedAt, contentUpdatedAt);
 
   return (
     <section className="flex h-full min-h-[calc(100vh-9rem)] flex-col bg-background">
@@ -191,7 +205,7 @@ export const ProjectDocDetailsPage = () => {
               setSaveError(error instanceof Error ? error.message : "Unable to read editor content.");
             }
           }}
-          className="h-full"
+          className="h-full blocknote-readable-links"
         />
       </div>
 
@@ -209,7 +223,7 @@ export const ProjectDocDetailsPage = () => {
 
         <div className="shrink-0 text-right leading-relaxed">
           <p>Created: {formatAbsoluteTimestamp(document.$jazz.createdAt)}</p>
-          <p>Updated: {formatRelativeTimestamp(document.$jazz.lastUpdatedAt)}</p>
+          <p>Last updated: {formatRelativeTimestamp(effectiveUpdatedAt, now)}</p>
         </div>
       </footer>
     </section>

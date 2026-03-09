@@ -112,7 +112,7 @@ export const ProjectOverviewPage = () => {
               setSaveError(error instanceof Error ? error.message : "Unable to read summary content.");
             }
           }}
-          className="h-full"
+          className="h-full blocknote-readable-links"
         />
       </div>
 
