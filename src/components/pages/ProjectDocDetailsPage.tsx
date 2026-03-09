@@ -9,6 +9,38 @@ import { Document } from "@/schema";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
+const absoluteDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, {
+  numeric: "auto",
+});
+
+const formatAbsoluteTimestamp = (value: number) => {
+  return absoluteDateFormatter.format(new Date(value));
+};
+
+const formatRelativeTimestamp = (value: number) => {
+  const diffMs = value - Date.now();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (Math.abs(diffMinutes) < 60) {
+    return relativeTimeFormatter.format(diffMinutes, "minute");
+  }
+
+  const diffHours = Math.round(diffMs / 3600000);
+  if (Math.abs(diffHours) < 24) {
+    return relativeTimeFormatter.format(diffHours, "hour");
+  }
+
+  const diffDays = Math.round(diffMs / 86400000);
+  return relativeTimeFormatter.format(diffDays, "day");
+};
+
 export const ProjectDocDetailsPage = () => {
   const { docId } = useParams();
   const document = useCoState(Document, docId);
@@ -93,7 +125,9 @@ export const ProjectDocDetailsPage = () => {
 
     setIsSaving(true);
     try {
-      document.content.$jazz.applyDiff(nextContent);
+      const loadedDocument = await document.$jazz.ensureLoaded({ resolve: { content: true } });
+      if (!loadedDocument.content.$isLoaded) return;
+      loadedDocument.content.$jazz.applyDiff(nextContent);
       setLastSavedContent(nextContent);
       setSaveError(null);
     } catch (error) {
@@ -128,7 +162,7 @@ export const ProjectDocDetailsPage = () => {
 
   return (
     <section className="flex h-full min-h-[calc(100vh-9rem)] flex-col bg-background">
-      <header className="px-6 pt-6 pb-3">
+      <header className="px-6 pt-2 pb-3">
         <input
           value={draftTitle}
           onChange={(event) => {
@@ -143,7 +177,7 @@ export const ProjectDocDetailsPage = () => {
         />
       </header>
 
-      <div className="flex-1 px-4 pb-4">
+      <div className="flex-1 pb-4">
         <BlockNoteView
           editor={editor}
           onChange={async () => {
@@ -161,15 +195,22 @@ export const ProjectDocDetailsPage = () => {
         />
       </div>
 
-      <footer className="flex items-center justify-between px-6 py-2 text-xs text-muted-foreground border-t">
-        <span>
-          {isSaving
-            ? "Saving..."
-            : draftTitle !== lastSavedTitle || draftContent !== lastSavedContent
-              ? "Unsaved changes"
-              : "All changes saved"}
-        </span>
-        {saveError ? <span className="text-red-700">{saveError}</span> : null}
+      <footer className="flex items-center justify-between gap-4 border-t px-6 py-2 text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <span>
+            {isSaving
+              ? "Saving..."
+              : draftTitle !== lastSavedTitle || draftContent !== lastSavedContent
+                ? "Unsaved changes"
+                : "All changes saved"}
+          </span>
+          {saveError ? <p className="text-red-700">{saveError}</p> : null}
+        </div>
+
+        <div className="shrink-0 text-right leading-relaxed">
+          <p>Created: {formatAbsoluteTimestamp(document.$jazz.createdAt)}</p>
+          <p>Updated: {formatRelativeTimestamp(document.$jazz.lastUpdatedAt)}</p>
+        </div>
       </footer>
     </section>
   );

@@ -13,6 +13,10 @@ if (!CLERK_PUBLISHABLE_KEY.trim()) {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in environment.");
 }
 
+const APP_TITLE = (import.meta.env.VITE_APP_TITLE as string | undefined)?.trim() || "Meridian";
+const DEV_TITLE_SUFFIX = (import.meta.env.VITE_DEV_TITLE_SUFFIX as string | undefined)?.trim() || "DEV";
+document.title = import.meta.env.DEV ? `${APP_TITLE} (${DEV_TITLE_SUFFIX})` : APP_TITLE;
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppErrorBoundary>
