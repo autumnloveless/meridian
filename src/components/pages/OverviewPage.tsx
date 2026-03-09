@@ -24,8 +24,9 @@ type TaskEntry = {
   task: any;
   bucket: any;
   keyPrefix: string;
-  targetId: string;
-  targetLabel: string;
+  projectId: string;
+  projectLabel: string;
+  projectHref?: string;
   taskHref?: string;
 };
 
@@ -180,8 +181,9 @@ export const OverviewPage = () => {
             task,
             bucket,
             keyPrefix: organization.project_key,
-            targetId: `org:${organization.$jazz.id}`,
-            targetLabel: `${organization.name} (Org)`,
+            projectId: `org:${organization.$jazz.id}`,
+            projectLabel: `${organization.name} (Org)`,
+            projectHref: `/organizations/${organization.$jazz.id}/tasks/list`,
             taskHref: `/organizations/${organization.$jazz.id}/tasks/${task.$jazz.id}`,
           });
         }
@@ -201,8 +203,9 @@ export const OverviewPage = () => {
               task,
               bucket,
               keyPrefix: project.project_key,
-              targetId: `project:${project.$jazz.id}`,
-              targetLabel: `${organization.name} / ${project.name}`,
+              projectId: `project:${project.$jazz.id}`,
+              projectLabel: `${organization.name} / ${project.name}`,
+              projectHref: `${getProjectBasePath(project.$jazz.id, organization.$jazz.id)}/tasks/list`,
               taskHref: `${getProjectBasePath(project.$jazz.id, organization.$jazz.id)}/tasks/${task.$jazz.id}`,
             });
           }
@@ -267,7 +270,7 @@ export const OverviewPage = () => {
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
+    <section className="mx-auto w-full max-w-7xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
       <Card className="border-border/70 shadow-sm">
         <CardHeader className="space-y-3 border-b border-border/70 pb-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -326,7 +329,7 @@ export const OverviewPage = () => {
                   <tr>
                     <th className="w-28 px-2 py-1 text-left">Key</th>
                     <th className="px-2 py-1 text-left">Summary</th>
-                    <th className="w-32 px-2 py-1 text-left">Target</th>
+                    <th className="w-32 px-2 py-1 text-left">Project</th>
                     <th className="w-24 px-2 py-1 text-left">Type</th>
                     <th className="w-24 px-2 py-1 text-left">Status</th>
                   </tr>
@@ -353,7 +356,19 @@ export const OverviewPage = () => {
                           )}
                         </td>
                         <td className="px-2 py-1">{entry.task.summary}</td>
-                        <td className="px-2 py-1 text-xs text-muted-foreground">{entry.targetLabel}</td>
+                        <td className="px-2 py-1 text-xs text-muted-foreground">
+                          {entry.projectHref ? (
+                            <Link
+                              to={entry.projectHref}
+                              className="hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {entry.projectLabel}
+                            </Link>
+                          ) : (
+                            entry.projectLabel
+                          )}
+                        </td>
                         <td className="px-2 py-1 text-[11px] uppercase">{entry.task.type}</td>
                         <td className="px-2 py-1 text-[11px] uppercase">{entry.task.status}</td>
                       </tr>
@@ -394,7 +409,17 @@ export const OverviewPage = () => {
                             ) : (
                               <p className="text-[11px] text-sky-700">{getTaskDisplayId(entry.task, entry.keyPrefix)}</p>
                             )}
-                            <p className="text-[11px] text-muted-foreground">{entry.targetLabel}</p>
+                            {entry.projectHref ? (
+                              <Link
+                                to={entry.projectHref}
+                                className="text-[11px] text-muted-foreground hover:underline"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {entry.projectLabel}
+                              </Link>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground">{entry.projectLabel}</p>
+                            )}
                           </button>
                         ))
                       )}
