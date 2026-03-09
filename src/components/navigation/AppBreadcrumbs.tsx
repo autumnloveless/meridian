@@ -141,10 +141,11 @@ export const AppBreadcrumbs = () => {
       <BreadcrumbList className="min-w-0 flex-nowrap overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
+          const isMiddleCrumb = index > 0 && !isLast;
 
           return (
             <Fragment key={crumb.to}>
-              <BreadcrumbItem className="min-w-0 shrink">
+              <BreadcrumbItem className={isMiddleCrumb ? "hidden min-w-0 shrink sm:flex" : "min-w-0 shrink"}>
                 {isLast ? (
                   <BreadcrumbPage>
                     <span className="min-w-0 shrink max-w-[min(30ch,55vw)] truncate">
@@ -159,7 +160,11 @@ export const AppBreadcrumbs = () => {
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-              {!isLast && <BreadcrumbSeparator className="text-muted-foreground/70" />}
+              {!isLast ? (
+                <BreadcrumbSeparator
+                  className={isMiddleCrumb ? "hidden text-muted-foreground/70 sm:flex" : "text-muted-foreground/70"}
+                />
+              ) : null}
             </Fragment>
           );
         })}

@@ -37,7 +37,7 @@ export const DocsIndexPage = ({
 
   if (documents.length === 0) {
     return (
-      <section className="space-y-3 border rounded-md p-6 bg-background">
+      <section className="space-y-3 rounded-md border bg-background p-4 sm:p-6">
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       </section>
@@ -45,7 +45,7 @@ export const DocsIndexPage = ({
   }
 
   return (
-    <section className="space-y-2 border rounded-md p-6 bg-background">
+    <section className="space-y-2 rounded-md border bg-background p-4 sm:p-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="text-sm text-muted-foreground">Choose a page from the sidebar to start editing.</p>
       {firstDocumentId ? (

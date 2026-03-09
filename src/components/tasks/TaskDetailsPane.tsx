@@ -74,7 +74,7 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
         onClick={onClose}
       />
 
-      <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] flex-col border-l border-stone-200 bg-white shadow-2xl">
+      <aside className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] w-full flex-col rounded-t-xl border border-stone-200 bg-white shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-full md:max-w-[420px] md:rounded-none md:border-l md:border-t-0">
         <header className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
@@ -87,7 +87,7 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
           </Button>
         </header>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <label className="block space-y-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Summary</span>
             <Input
@@ -97,7 +97,7 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Type</span>
               <select

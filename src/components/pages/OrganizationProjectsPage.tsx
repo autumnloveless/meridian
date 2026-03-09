@@ -341,19 +341,20 @@ export const OrganizationProjectsPage = () => {
   return (
     <section className="space-y-3">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Projects</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <Button
               type="button"
               variant="outline"
               onClick={requestProjectOwnerMigration}
               disabled={isMigratingOwners || !canManageOrganization}
               title={!canManageOrganization ? "Requires organization manager/admin access" : undefined}
+              className="w-full sm:w-auto"
             >
               {isMigratingOwners ? "Migrating..." : ownershipFixLabel}
             </Button>
-            <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
+            <Button type="button" onClick={() => setIsCreateProjectOpen(true)} className="w-full sm:w-auto">
               Create Project
             </Button>
           </div>
@@ -366,7 +367,7 @@ export const OrganizationProjectsPage = () => {
               {projects.map((project) => {
                 const path = getProjectBasePath(project.$jazz.id, orgId);
                 return (
-                  <li key={project.$jazz.id} className="flex items-center justify-between rounded border bg-background px-3 py-2">
+                  <li key={project.$jazz.id} className="flex items-center justify-between gap-2 rounded border bg-background px-3 py-2">
                     <Link className="text-sm font-medium hover:underline" to={`${path}/overview`}>
                       {project.name}
                     </Link>

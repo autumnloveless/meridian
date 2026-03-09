@@ -5,9 +5,9 @@ import { AppBreadcrumbs } from "@/components/navigation/AppBreadcrumbs";
 
 export const BaseLayout = () => {
   return (
-    <div className="flex h-dvh min-h-screen flex-col">
+    <div className="flex min-h-dvh min-h-screen flex-col">
       <Header />
-      <div className="border-b bg-background px-4 py-2 sm:px-6 lg:px-8">
+      <div className="border-b bg-background px-3 py-2 sm:px-6 lg:px-8">
         <AppBreadcrumbs />
       </div>
       <InviteHandler />

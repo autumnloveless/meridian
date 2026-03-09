@@ -93,13 +93,13 @@ export const ProjectOverviewPage = () => {
   if (!project.$isLoaded) return <div className="text-sm text-muted-foreground">Loading project summary...</div>;
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 p-1 sm:space-y-4">
       <header>
         <h2 className="text-lg font-semibold">Project Summary</h2>
         <p className="text-sm text-muted-foreground">Quick project context and status notes.</p>
       </header>
 
-      <div className="h-[30vh] min-h-[220px] max-h-[33vh] overflow-hidden rounded-md border bg-background">
+      <div className="h-[36vh] min-h-[260px] max-h-[46vh] overflow-hidden rounded-md border bg-background sm:h-[30vh] sm:max-h-[33vh]">
         <BlockNoteView
           editor={editor}
           onChange={async () => {
@@ -117,7 +117,7 @@ export const ProjectOverviewPage = () => {
         />
       </div>
 
-      <footer className="flex items-center justify-between text-xs text-muted-foreground">
+      <footer className="flex flex-col items-start justify-between gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center">
         <span>
           {isSaving
             ? "Saving..."

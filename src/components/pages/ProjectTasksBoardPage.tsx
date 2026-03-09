@@ -431,7 +431,7 @@ export const ProjectTasksBoardPage = () => {
           <div className="relative w-full max-w-[240px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
-              className="h-7 border-stone-300 pl-7 text-xs"
+              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search task"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -446,7 +446,7 @@ export const ProjectTasksBoardPage = () => {
                 taskType: event.target.value as TaskType,
               }))
             }
-            className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+            className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:w-auto sm:text-xs"
             aria-label="Task type"
           >
             <option value="Task">Task</option>
@@ -454,7 +454,7 @@ export const ProjectTasksBoardPage = () => {
           </select>
 
           <Input
-            className="h-7 min-w-[220px] flex-1 text-xs"
+            className="h-9 w-full flex-1 text-sm sm:h-7 sm:min-w-[220px] sm:text-xs"
             value={draftTask.summary}
             onChange={(event) =>
               setDraftTask((current) => ({ ...current, summary: event.target.value }))
@@ -470,7 +470,7 @@ export const ProjectTasksBoardPage = () => {
 
           <Button
             size="sm"
-            className="h-7 text-xs"
+            className="h-9 w-full text-sm sm:h-7 sm:w-auto sm:text-xs"
             onClick={createTask}
             disabled={!profile || !draftTask.summary.trim()}
           >
@@ -485,13 +485,14 @@ export const ProjectTasksBoardPage = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="overflow-x-auto pb-2">
+          <div className="flex min-w-max gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
           {boardColumns.map((column) => {
             const tasks = columnTasks[column.status];
             const taskIds = tasks.map((task) => taskDndId(task.$jazz.id));
 
             return (
-              <Card key={column.status} className="h-[calc(100vh-16rem)] border border-stone-200 bg-stone-100/60 py-0">
+              <Card key={column.status} className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-stone-200 bg-stone-100/60 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
                 <CardHeader className="gap-2 border-b border-stone-200 px-3 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-sm font-semibold text-stone-800">{column.title}</CardTitle>
@@ -519,6 +520,7 @@ export const ProjectTasksBoardPage = () => {
               </Card>
             );
           })}
+          </div>
         </div>
 
         <DragOverlay>{draggedTask ? <DragTaskPreview task={draggedTask} /> : null}</DragOverlay>

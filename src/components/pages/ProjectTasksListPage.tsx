@@ -147,8 +147,8 @@ function BucketBody({
 
 function DragTaskPreview({ task }: { task: LoadedTask }) {
   return (
-    <div className="w-[760px] max-w-[94vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
-      <div className="grid grid-cols-[20px_96px_minmax(0,1fr)_88px_96px_40px] items-center gap-1.5">
+    <div className="w-[680px] max-w-[96vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
+      <div className="grid grid-cols-[20px_90px_minmax(0,1fr)_74px_88px_40px] items-center gap-1.5">
         <GripVertical className="h-3.5 w-3.5 text-stone-500" />
         <span className="text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
         <span className="truncate text-[13px] text-stone-800">{task.summary}</span>
@@ -400,6 +400,28 @@ export const ProjectTasksListPage = () => {
 
   const findBucketByTaskId = (taskId: string) =>
     project.task_buckets.find((bucket) => bucket.tasks.some((task) => task.$jazz.id === taskId));
+
+  const moveTaskToBucket = (taskId: string, targetBucketId: string) => {
+    const sourceBucket = findBucketByTaskId(taskId);
+    const targetBucket = project.task_buckets.find((bucket) => bucket.$jazz.id === targetBucketId);
+
+    if (!sourceBucket || !targetBucket || sourceBucket.$jazz.id === targetBucket.$jazz.id) {
+      return;
+    }
+
+    const sourceIndex = sourceBucket.tasks.findIndex((task) => task.$jazz.id === taskId);
+    if (sourceIndex < 0) return;
+
+    const removed = sourceBucket.tasks.$jazz.splice(sourceIndex, 1);
+    const movedTask = removed[0];
+    if (!movedTask) return;
+
+    targetBucket.tasks.$jazz.push(movedTask);
+    movedTask.$jazz.set("status", bucketTypeToTaskStatus(targetBucket.type));
+
+    normalizeTaskOrder(sourceBucket);
+    normalizeTaskOrder(targetBucket);
+  };
 
   const resolveDropTarget = (overId: string) => {
     const overTaskId = parseTaskDndId(overId);
@@ -675,18 +697,18 @@ export const ProjectTasksListPage = () => {
     <section className="space-y-3">
       <div>
         <h2 className="text-xl font-semibold text-stone-900">Backlog</h2>
-        <div className="font-[Inter] mt-2 flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+        <div className="font-[Inter] mt-2 flex flex-col gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full max-w-[220px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
-              className="h-7 border-stone-300 pl-7 text-xs"
+              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search by summary, key, assignee"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
           <select
-            className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
+            className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-700 sm:h-7 sm:w-auto sm:text-xs"
             value={ticketTypeFilter}
             onChange={(event) => setTicketTypeFilter(event.target.value as "All" | TaskType)}
             aria-label="Filter by ticket type"
@@ -746,7 +768,65 @@ export const ProjectTasksListPage = () => {
 
                 {!collapsed ? (
                   <div className="p-0">
-                    <div className="overflow-x-auto">
+                    <div className="space-y-2 p-2 md:hidden">
+                      {filteredTasks.length === 0 ? (
+                        <div className="rounded border border-dashed border-stone-200 px-3 py-3 text-xs text-stone-500">
+                          No tasks in this bucket.
+                        </div>
+                      ) : (
+                        filteredTasks.map((task) => (
+                          <div
+                            key={task.$jazz.id}
+                            role="button"
+                            tabIndex={0}
+                            className="w-full rounded border border-stone-200 bg-white px-3 py-2 text-left"
+                            onClick={() => setSelectedTaskId(task.$jazz.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedTaskId(task.$jazz.id);
+                              }
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-[11px] font-medium text-sky-700">{getTaskKey(task)}</span>
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+                                {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-stone-800">{task.summary}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+                              <span>{task.tags[0] ?? "No tag"}</span>
+                              <span>{task.status}</span>
+                            </div>
+
+                            <div className="mt-2 flex items-center gap-2">
+                              <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-500" htmlFor={`bucket-move-${task.$jazz.id}`}>
+                                Bucket
+                              </label>
+                              <select
+                                id={`bucket-move-${task.$jazz.id}`}
+                                className="h-8 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
+                                value={bucket.$jazz.id}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => {
+                                  event.stopPropagation();
+                                  moveTaskToBucket(task.$jazz.id, event.target.value);
+                                }}
+                              >
+                                {orderedBuckets.map((candidateBucket) => (
+                                  <option key={candidateBucket.$jazz.id} value={candidateBucket.$jazz.id}>
+                                    {candidateBucket.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="hidden overflow-x-auto md:block">
                       <table className="w-full table-fixed border-collapse text-sm">
                         <thead className="bg-stone-100 text-[10px] uppercase tracking-[0.07em] text-stone-600">
                           <tr>
@@ -787,7 +867,7 @@ export const ProjectTasksListPage = () => {
                       </table>
                     </div>
 
-                    <div className="flex items-center gap-2 border-t border-stone-200 bg-stone-50 px-2 py-1.5">
+                    <div className="flex flex-col items-stretch gap-2 border-t border-stone-200 bg-stone-50 px-2 py-1.5 sm:flex-row sm:items-center">
                       <select
                         value={draftTask.taskType}
                         onChange={(event) =>
@@ -796,7 +876,7 @@ export const ProjectTasksListPage = () => {
                             taskType: event.target.value as TaskType,
                           })
                         }
-                        className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+                        className="h-9 rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:text-xs"
                         aria-label={`Task type for ${bucket.name}`}
                       >
                         <option value="Task">Task</option>
@@ -804,7 +884,7 @@ export const ProjectTasksListPage = () => {
                       </select>
 
                       <Input
-                        className="h-7 text-xs"
+                        className="h-9 text-sm sm:h-7 sm:text-xs"
                         value={draftTask.summary}
                         onChange={(event) =>
                           setDraftTask(bucket.$jazz.id, {
@@ -823,7 +903,7 @@ export const ProjectTasksListPage = () => {
 
                       <Button
                         size="sm"
-                        className="h-7 text-xs"
+                        className="h-9 text-sm sm:h-7 sm:text-xs"
                         onClick={() => createTaskInBucket(bucket.$jazz.id)}
                         disabled={!profile || !draftTask.summary.trim()}
                       >

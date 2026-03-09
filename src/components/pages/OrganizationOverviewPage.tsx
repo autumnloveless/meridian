@@ -42,7 +42,7 @@ export const OrganizationOverviewPage = () => {
   if (!organization.$isLoaded) return <div className="text-sm text-muted-foreground">Loading organization summary...</div>;
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 p-1 sm:space-y-4">
       <header>
         <h2 className="text-lg font-semibold">Organization Summary</h2>
         <p className="text-sm text-muted-foreground">Shared context and status for this organization.</p>
@@ -51,7 +51,7 @@ export const OrganizationOverviewPage = () => {
       <textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        className="min-h-[260px] w-full resize-y rounded-md border bg-background p-3 text-sm"
+        className="min-h-[300px] w-full resize-y rounded-md border bg-background p-3 text-sm"
         placeholder="Write an overview for this organization..."
       />
 

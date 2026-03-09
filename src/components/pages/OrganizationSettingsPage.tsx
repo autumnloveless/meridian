@@ -64,12 +64,12 @@ const MemberPermissionRow = ({
           <p className="truncate text-xs text-muted-foreground">{memberId}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           {canManage && memberAccount.$isLoaded ? (
             <>
               <select
                 aria-label={`Permission for ${displayName}`}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-auto"
                 value={normalizedCurrentRole === "unknown" ? "reader" : normalizedCurrentRole}
                 onChange={(event) => {
                   const value = event.target.value as EditableRole;
@@ -88,7 +88,7 @@ const MemberPermissionRow = ({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9"
+                className="h-9 w-full sm:w-auto"
                 onClick={() => onRemove(memberAccount)}
               >
                 Remove

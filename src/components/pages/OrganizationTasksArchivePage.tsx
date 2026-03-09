@@ -21,7 +21,7 @@ export const OrganizationTasksArchivePage = () => {
   const { orgId } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [taskType, setTaskType] = useState<LoadedTask["type"]>("Task");
-  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState(() => (orgId ? `org:${orgId}` : ""));
   const [summary, setSummary] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -66,13 +66,6 @@ export const OrganizationTasksArchivePage = () => {
     loadedOrganization.projects.forEach((project) => ensureDefaultBuckets(project));
   }, [organization]);
 
-  useEffect(() => {
-    if (!organization.$isLoaded) return;
-    if (!selectedTargetId) {
-      setSelectedTargetId(`org:${organization.$jazz.id}`);
-    }
-  }, [organization, selectedTargetId]);
-
   const archived = useFilteredOrganizationTaskContainers({
     organization: organization.$isLoaded ? (organization as LoadedOrganization) : null,
     search: searchQuery,
@@ -111,7 +104,7 @@ export const OrganizationTasksArchivePage = () => {
           <div className="relative w-full max-w-[260px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
-              className="h-7 border-stone-300 pl-7 text-xs"
+              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search archived tasks"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -132,7 +125,38 @@ export const OrganizationTasksArchivePage = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-sm border border-stone-200 bg-white">
+      <div className="space-y-2 md:hidden">
+        {archived.length === 0 ? (
+          <div className="rounded-sm border border-stone-200 bg-white px-3 py-3 text-xs text-stone-500">No archived tasks found.</div>
+        ) : (
+          archived.map((entry) => {
+            const task = entry.task;
+            return (
+              <button
+                key={task.$jazz.id}
+                type="button"
+                className="w-full rounded-sm border border-stone-200 bg-white px-3 py-3 text-left"
+                onClick={() => setSelectedTaskId(task.$jazz.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+                    {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm font-medium text-stone-800">{task.summary}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <ProjectBadge projectName={entry.projectName} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-600">{task.status}</span>
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-sm border border-stone-200 bg-white md:block">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed border-collapse text-sm">
             <thead className="bg-stone-100 text-[10px] uppercase tracking-[0.07em] text-stone-600">

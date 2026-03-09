@@ -196,6 +196,17 @@ export const Header = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen]);
+
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
@@ -206,8 +217,11 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header
+      className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
+      <div className="mx-auto flex h-14 w-full items-center justify-between gap-3 px-3 sm:h-16 sm:gap-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link
             to="/overview"
@@ -354,7 +368,7 @@ export const Header = () => {
           <div>
             <Button
               variant="ghost"
-              className="sm:hidden"
+              className="size-10 p-0 sm:hidden"
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
               aria-controls="mobile-nav-menu"
               aria-expanded={isMobileMenuOpen}
@@ -373,52 +387,84 @@ export const Header = () => {
         </div>
       )}
 
-      {isMobileMenuOpen && (
-        <div id="mobile-nav-menu" className="border-t border-border/70 px-4 py-3 sm:hidden">
-          <nav aria-label="Primary mobile" className="mx-auto flex w-full max-w-6xl flex-col gap-2">
-            {topLevelNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={closeMobileMenu}
-                className={({ isActive }) =>
-                  cn(
-                    "rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+      {isMobileMenuOpen ? (
+        <div
+          className="fixed inset-x-0 bottom-0 top-[calc(3.5rem+env(safe-area-inset-top))] z-40 sm:hidden"
+          aria-hidden={!isMobileMenuOpen}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/35"
+            aria-label="Close navigation menu"
+            onClick={closeMobileMenu}
+          />
+          <div
+            id="mobile-nav-menu"
+            className="absolute inset-0 overflow-y-auto border-t border-border/70 bg-background px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
+          >
+            <nav aria-label="Primary mobile" className="mx-auto flex w-full max-w-6xl flex-col gap-2">
+              {topLevelNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  className={({ isActive }) =>
+                    cn(
+                      "rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
 
-            {projectEntries.length > 0 ? (
-              <div className="rounded-md border border-border/70 px-3 py-2">
-                <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Recent Projects</p>
-                <div className="flex flex-col gap-1">
-                  {projectEntries.map((project) => (
-                    <Link
-                      key={project.id}
-                      to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
-                      onClick={closeMobileMenu}
-                      className="group rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <div className="flex flex-col">
-                        <span>{project.name}</span>
-                        <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus:text-foreground">
-                          {project.orgName}
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
+              {organizationEntries.length > 0 ? (
+                <div className="rounded-md border border-border/70 px-3 py-2">
+                  <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Organizations</p>
+                  <div className="flex flex-col gap-1">
+                    {organizationEntries.map((organization) => (
+                      <Link
+                        key={organization.id}
+                        to={`/organizations/${organization.id}/overview`}
+                        onClick={closeMobileMenu}
+                        className="rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        {organization.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
-          </nav>
+              ) : null}
+
+              {projectEntries.length > 0 ? (
+                <div className="rounded-md border border-border/70 px-3 py-2">
+                  <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Recent Projects</p>
+                  <div className="flex flex-col gap-1">
+                    {projectEntries.map((project) => (
+                      <Link
+                        key={project.id}
+                        to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
+                        onClick={closeMobileMenu}
+                        className="group rounded px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <div className="flex flex-col">
+                          <span>{project.name}</span>
+                          <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus:text-foreground">
+                            {project.orgName}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </nav>
+          </div>
         </div>
-      )}
+      ) : null}
     </header>
   );
 };

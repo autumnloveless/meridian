@@ -32,7 +32,7 @@ export const OrganizationTasksBoardPage = () => {
   const { orgId } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [taskType, setTaskType] = useState<LoadedTask["type"]>("Task");
-  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState(() => (orgId ? `org:${orgId}` : ""));
   const [summary, setSummary] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -77,13 +77,6 @@ export const OrganizationTasksBoardPage = () => {
     loadedOrganization.projects.forEach((project) => ensureDefaultBuckets(project));
   }, [organization]);
 
-  useEffect(() => {
-    if (!organization.$isLoaded) return;
-    if (!selectedTargetId) {
-      setSelectedTargetId(`org:${organization.$jazz.id}`);
-    }
-  }, [organization, selectedTargetId]);
-
   const filtered = useFilteredOrganizationTaskContainers({
     organization: organization.$isLoaded ? (organization as LoadedOrganization) : null,
     search: searchQuery,
@@ -125,7 +118,7 @@ export const OrganizationTasksBoardPage = () => {
           <div className="relative w-full max-w-[240px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
-              className="h-7 border-stone-300 pl-7 text-xs"
+              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search task"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -146,12 +139,13 @@ export const OrganizationTasksBoardPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="overflow-x-auto pb-2">
+        <div className="flex min-w-max gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
         {boardColumns.map((column) => {
           const entries = columns[column.status];
 
           return (
-            <Card key={column.status} className="h-[calc(100vh-16rem)] border border-stone-200 bg-stone-100/60 py-0">
+            <Card key={column.status} className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-stone-200 bg-stone-100/60 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
               <CardHeader className="gap-2 border-b border-stone-200 px-3 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm font-semibold text-stone-800">{column.title}</CardTitle>
@@ -191,6 +185,7 @@ export const OrganizationTasksBoardPage = () => {
             </Card>
           );
         })}
+        </div>
       </div>
 
       <TaskDetailsPane open={Boolean(selectedTask)} task={selectedTask} onClose={() => setSelectedTaskId(null)} />

@@ -255,11 +255,11 @@ export const OrganizationTaskCreateBar = ({
   const targets = getCreateTargets(organization);
 
   return (
-    <div className="font-[Inter] flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+    <div className="font-[Inter] flex flex-col gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
       <select
         value={taskType}
         onChange={(event) => onTaskTypeChange(event.target.value as LoadedTask["type"])}
-        className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+        className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:w-auto sm:text-xs"
         aria-label="Task type"
       >
         <option value="Task">Task</option>
@@ -269,7 +269,7 @@ export const OrganizationTaskCreateBar = ({
       <select
         value={selectedTargetId}
         onChange={(event) => onTargetChange(event.target.value)}
-        className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+        className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:w-auto sm:text-xs"
         aria-label="Target project"
       >
         {targets.map((target) => (
@@ -280,7 +280,7 @@ export const OrganizationTaskCreateBar = ({
       </select>
 
       <Input
-        className="h-7 min-w-[220px] flex-1 text-xs"
+        className="h-9 w-full flex-1 text-sm sm:h-7 sm:min-w-[220px] sm:text-xs"
         value={summary}
         onChange={(event) => onSummaryChange(event.target.value)}
         onKeyDown={(event) => {
@@ -290,7 +290,7 @@ export const OrganizationTaskCreateBar = ({
         aria-label="Create task"
       />
 
-      <Button size="sm" className="h-7 text-xs" onClick={onCreate} disabled={!profile || !summary.trim()}>
+      <Button size="sm" className="h-9 w-full text-sm sm:h-7 sm:w-auto sm:text-xs" onClick={onCreate} disabled={!profile || !summary.trim()}>
         Create task
       </Button>
     </div>

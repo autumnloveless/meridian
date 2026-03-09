@@ -177,8 +177,8 @@ export const DocumentEditorPage = () => {
   const effectiveUpdatedAt = Math.max(document.$jazz.lastUpdatedAt, contentUpdatedAt);
 
   return (
-    <section className="flex h-full min-h-[calc(100vh-9rem)] flex-col bg-background">
-      <header className="px-6 pt-2 pb-3">
+    <section className="flex h-full min-h-[calc(100dvh-8rem)] flex-col bg-background">
+      <header className="px-3 pb-3 pt-2 sm:px-6">
         <input
           value={draftTitle}
           onChange={(event) => {
@@ -188,7 +188,7 @@ export const DocumentEditorPage = () => {
           onBlur={() => {
             void saveTitle();
           }}
-          className="w-full text-2xl font-semibold bg-transparent outline-none"
+          className="w-full bg-transparent text-xl font-semibold outline-none sm:text-2xl"
           placeholder="Untitled page"
         />
       </header>
@@ -211,7 +211,7 @@ export const DocumentEditorPage = () => {
         />
       </div>
 
-      <footer className="flex items-center justify-between gap-4 border-t px-6 py-2 text-xs text-muted-foreground">
+      <footer className="flex flex-col items-start justify-between gap-1 border-t px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4 sm:px-6">
         <div className="min-w-0">
           <span>
             {isSaving
@@ -223,7 +223,7 @@ export const DocumentEditorPage = () => {
           {saveError ? <p className="text-red-700">{saveError}</p> : null}
         </div>
 
-        <div className="shrink-0 text-right leading-relaxed">
+        <div className="shrink-0 leading-relaxed sm:text-right">
           <p>Created: {formatAbsoluteTimestamp(document.$jazz.createdAt)}</p>
           <p>Last updated: {formatRelativeTimestamp(effectiveUpdatedAt, now)}</p>
         </div>
