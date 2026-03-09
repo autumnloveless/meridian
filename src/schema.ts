@@ -1,4 +1,5 @@
 import { co, z, setDefaultSchemaPermissions } from "jazz-tools";
+import { defaultProjectKeyFromName, normalizeProjectKey } from "@/lib/taskIds";
 
 setDefaultSchemaPermissions({
   onInlineCreate: "sameAsContainer",
@@ -52,6 +53,7 @@ export const Person = co.map({
 export const Task = co.map({
   summary: z.string(),
   assigned_to: co.profile(),
+  sequence_number: z.int(),
   status: z.enum(["Backlog", "In Progress", "In-Review", "Completed", "Cancelled", "Archived"]),
   details: co.richText(),
   custom_fields: z.object(),
@@ -60,6 +62,9 @@ export const Task = co.map({
   tags: z.array(z.string()) 
 }).withMigration((task) => {
   if (!task.$jazz.has("tags")) { task.$jazz.set("tags", []) }
+  if (!task.$jazz.has("sequence_number")) {
+    task.$jazz.set("sequence_number", Math.max(task.order, 1));
+  }
 })
 
 export const TaskBucket = co.map({
@@ -71,6 +76,8 @@ export const TaskBucket = co.map({
 
 export const Project = co.map({
   name: z.string(),
+  project_key: z.string(),
+  next_task_number: z.int(),
   overview: co.richText(),
   documents: co.list(Document),
   requirements: co.list(Requirement),
@@ -78,11 +85,33 @@ export const Project = co.map({
   test_results: co.list(TestReport),
   people: co.list(Person),
   task_buckets: co.list(TaskBucket)
+}).withMigration((project) => {
+  if (!project.$jazz.has("project_key")) {
+    project.$jazz.set("project_key", defaultProjectKeyFromName(project.name, "PRJ"));
+  } else {
+    project.$jazz.set("project_key", normalizeProjectKey(project.project_key, "PRJ"));
+  }
+
+  if (!project.$jazz.has("next_task_number")) {
+    let highest = 0;
+    const projectBuckets = project.task_buckets && project.task_buckets.$isLoaded ? [...project.task_buckets] : [];
+    for (const bucket of projectBuckets) {
+      if (!bucket || !bucket.$isLoaded) continue;
+      const bucketTasks = bucket.tasks && bucket.tasks.$isLoaded ? [...bucket.tasks] : [];
+      for (const task of bucketTasks) {
+        if (!task || !task.$isLoaded) continue;
+        highest = Math.max(highest, task.sequence_number || task.order || 0);
+      }
+    }
+    project.$jazz.set("next_task_number", highest + 1);
+  }
 })
 export type Project = co.loaded<typeof Project>;
 
 export const Organization = co.map({
   name: z.string(),
+  project_key: z.string(),
+  next_task_number: z.int(),
   overview: co.richText(),
   projects: co.list(Project),
   documents: co.list(Document),
@@ -109,6 +138,26 @@ export const Organization = co.map({
         { name: "Active", type: "Active", order: 2, tasks: [] },
       ]
     );
+  }
+
+  if (!organization.$jazz.has("project_key")) {
+    organization.$jazz.set("project_key", defaultProjectKeyFromName(organization.name, "ORG"));
+  } else {
+    organization.$jazz.set("project_key", normalizeProjectKey(organization.project_key, "ORG"));
+  }
+
+  if (!organization.$jazz.has("next_task_number")) {
+    let highest = 0;
+    const organizationBuckets = organization.task_buckets && organization.task_buckets.$isLoaded ? [...organization.task_buckets] : [];
+    for (const bucket of organizationBuckets) {
+      if (!bucket || !bucket.$isLoaded) continue;
+      const bucketTasks = bucket.tasks && bucket.tasks.$isLoaded ? [...bucket.tasks] : [];
+      for (const task of bucketTasks) {
+        if (!task || !task.$isLoaded) continue;
+        highest = Math.max(highest, task.sequence_number || task.order || 0);
+      }
+    }
+    organization.$jazz.set("next_task_number", highest + 1);
   }
 })
 export type Organization = co.loaded<typeof Organization>;
@@ -206,6 +255,8 @@ export const Account = co
     if (!personalOrg) {
       personalOrg = Organization.create({
         name: "My Org",
+        project_key: "ORG",
+        next_task_number: 1,
         overview: "",
         projects: [],
         documents: [],

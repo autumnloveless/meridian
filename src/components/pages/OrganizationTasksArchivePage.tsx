@@ -25,6 +25,7 @@ import {
   type LoadedTask,
   useFilteredOrganizationTaskContainers,
 } from "@/components/tasks/organizationTasksShared";
+import { getTaskDisplayId } from "@/lib/taskIds";
 
 export const OrganizationTasksArchivePage = () => {
   const { orgId } = useParams();
@@ -82,11 +83,11 @@ export const OrganizationTasksArchivePage = () => {
     includeArchived: true,
   });
 
-  const selectedTask = useMemo(() => {
+  const selectedTaskEntry = useMemo(() => {
     if (!selectedTaskId) return null;
-    const task = archived.find((entry) => entry.task.$jazz.id === selectedTaskId)?.task ?? null;
-    return task && task.$isLoaded ? task : null;
+    return archived.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
   }, [archived, selectedTaskId]);
+  const selectedTask = selectedTaskEntry?.task && selectedTaskEntry.task.$isLoaded ? selectedTaskEntry.task : null;
 
   const createTask = () => {
     if (!organization.$isLoaded) return;
@@ -188,7 +189,7 @@ export const OrganizationTasksArchivePage = () => {
                   onClick={() => setSelectedTaskId(task.$jazz.id)}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+                    <span className="text-[11px] font-semibold text-sky-700">{getTaskDisplayId(task, entry.taskKeyPrefix)}</span>
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
                       {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
                     </span>
@@ -234,7 +235,7 @@ export const OrganizationTasksArchivePage = () => {
                       className="border-b border-stone-200 bg-white hover:bg-stone-50"
                       onClick={() => setSelectedTaskId(task.$jazz.id)}
                     >
-                      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</td>
+                      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, entry.taskKeyPrefix)}</td>
                       <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
                       <td className="w-28 px-1.5 py-1"><ProjectBadge projectName={entry.projectName} /></td>
                       <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</td>
@@ -253,7 +254,12 @@ export const OrganizationTasksArchivePage = () => {
         </div>
       </div>
 
-      <TaskDetailsPane open={Boolean(selectedTask)} task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+      <TaskDetailsPane
+        open={Boolean(selectedTask)}
+        task={selectedTask}
+        taskIdPrefix={selectedTaskEntry?.taskKeyPrefix}
+        onClose={() => setSelectedTaskId(null)}
+      />
 
       <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-30 md:hidden">
         <DropdownMenu>

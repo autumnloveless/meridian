@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import { cascadeDeleteOrganization } from "@/lib/cascadeDelete";
+import { normalizeProjectKey } from "@/lib/taskIds";
 
 type EditableRole = "reader" | "writer" | "manager" | "admin";
 
@@ -131,6 +132,7 @@ export const OrganizationSettingsPage = () => {
   const isAuthenticated = useIsAuthenticated();
 
   const [orgName, setOrgName] = useState("");
+  const [orgKey, setOrgKey] = useState("");
   const [inviteRole, setInviteRole] = useState<EditableRole>("reader");
   const [inviteLink, setInviteLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
@@ -144,6 +146,11 @@ export const OrganizationSettingsPage = () => {
     if (!organization.$isLoaded) return;
     setOrgName(organization.name);
   }, [organization.$isLoaded, organization.$isLoaded ? organization.$jazz.id : null, organization.$isLoaded ? organization.name : null]);
+
+  useEffect(() => {
+    if (!organization.$isLoaded) return;
+    setOrgKey(organization.project_key);
+  }, [organization.$isLoaded, organization.$isLoaded ? organization.$jazz.id : null, organization.$isLoaded ? organization.project_key : null]);
 
   const canManagePermissions = useMemo(() => {
     if (!isAuthenticated || !me.$isLoaded || !organization.$isLoaded) return false;
@@ -167,6 +174,16 @@ export const OrganizationSettingsPage = () => {
 
     organization.$jazz.set("name", nextName);
     setOrgName(nextName);
+  };
+
+  const saveOrganizationKey = (event: FormEvent) => {
+    event.preventDefault();
+
+    const nextKey = normalizeProjectKey(orgKey, "ORG");
+    if (nextKey === organization.project_key) return;
+
+    organization.$jazz.set("project_key", nextKey);
+    setOrgKey(nextKey);
   };
 
   const generateInviteLink = () => {
@@ -273,6 +290,32 @@ export const OrganizationSettingsPage = () => {
               Save
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Task ID Prefix</CardTitle>
+          <CardDescription>
+            Used for organization-level task IDs like <span className="font-mono">{`${normalizeProjectKey(orgKey, "ORG")}-123`}</span>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-2 sm:flex-row" onSubmit={saveOrganizationKey}>
+            <Input
+              aria-label="Organization task ID prefix"
+              value={orgKey}
+              onChange={(event) => setOrgKey(event.target.value.toUpperCase())}
+              placeholder="ORG"
+            />
+            <Button
+              type="submit"
+              disabled={normalizeProjectKey(orgKey, "ORG") === organization.project_key}
+            >
+              Save
+            </Button>
+          </form>
+          <p className="mt-2 text-xs text-muted-foreground">Letters and numbers only, up to 6 characters.</p>
         </CardContent>
       </Card>
 

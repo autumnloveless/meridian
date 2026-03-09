@@ -4,6 +4,8 @@ import { co } from "jazz-tools";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Task as TaskSchema } from "@/schema";
+import type { TaskAssigneeOption } from "@/components/tasks/useProjectAssigneeOptions";
+import { getTaskDisplayId } from "@/lib/taskIds";
 
 type LoadedTask = co.loaded<typeof TaskSchema>;
 
@@ -11,6 +13,8 @@ type TaskDetailsPaneProps = {
   task: LoadedTask | null;
   open: boolean;
   onClose: () => void;
+  assigneeOptions?: TaskAssigneeOption[];
+  taskIdPrefix?: string;
 };
 
 const taskStatuses: LoadedTask["status"][] = [
@@ -24,7 +28,7 @@ const taskStatuses: LoadedTask["status"][] = [
 
 const taskTypes: LoadedTask["type"][] = ["Task", "Bug"];
 
-export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
+export function TaskDetailsPane({ task, open, onClose, assigneeOptions = [], taskIdPrefix }: TaskDetailsPaneProps) {
   const [customFieldsDraft, setCustomFieldsDraft] = useState("{}");
 
   useEffect(() => {
@@ -62,6 +66,22 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
       return "Invalid JSON";
     }
   }, [customFieldsDraft]);
+  const selectedAssigneeId = task?.assigned_to?.$isLoaded ? task.assigned_to.$jazz.id : "";
+  const selectedAssigneeName = task?.assigned_to?.$isLoaded ? task.assigned_to.name : "Unassigned";
+  const assigneeSelectOptions = useMemo(() => {
+    if (!selectedAssigneeId || assigneeOptions.some((option) => option.id === selectedAssigneeId)) {
+      return assigneeOptions;
+    }
+
+    if (!task?.assigned_to?.$isLoaded) {
+      return assigneeOptions;
+    }
+
+    return [
+      { id: selectedAssigneeId, name: selectedAssigneeName || selectedAssigneeId, profile: task.assigned_to },
+      ...assigneeOptions,
+    ];
+  }, [assigneeOptions, selectedAssigneeId, selectedAssigneeName, task]);
 
   if (!open || !task) return null;
 
@@ -80,7 +100,7 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
               Task details
             </p>
-            <p className="text-xs text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</p>
+            <p className="text-xs text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</p>
           </div>
           <Button type="button" size="sm" variant="outline" onClick={onClose}>
             Close
@@ -128,6 +148,29 @@ export function TaskDetailsPane({ task, open, onClose }: TaskDetailsPaneProps) {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Assignee</span>
+              {assigneeSelectOptions.length > 0 ? (
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedAssigneeId}
+                  onChange={(event) => {
+                    const next = assigneeSelectOptions.find((option) => option.id === event.target.value);
+                    if (!next) return;
+                    task.$jazz.set("assigned_to", next.profile);
+                  }}
+                >
+                  {assigneeSelectOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input value={selectedAssigneeName} readOnly />
+              )}
             </label>
           </div>
 

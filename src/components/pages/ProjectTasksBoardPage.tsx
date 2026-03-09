@@ -28,6 +28,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
+import { useProjectAssigneeOptions } from "@/components/tasks/useProjectAssigneeOptions";
+import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 
 const TASK_PREFIX = "task:";
 const COLUMN_PREFIX = "column:";
@@ -93,7 +95,15 @@ const boardStatuses = boardColumns.map((column) => column.status);
 const isBoardStatus = (status: LoadedTask["status"]): status is BoardStatus =>
   boardStatuses.includes(status as BoardStatus);
 
-function TaskCard({ task, onSelect }: { task: LoadedTask; onSelect: (task: LoadedTask) => void }) {
+function TaskCard({
+  task,
+  onSelect,
+  taskIdPrefix,
+}: {
+  task: LoadedTask;
+  onSelect: (task: LoadedTask) => void;
+  taskIdPrefix: string;
+}) {
   const sortable = useSortable({ id: taskDndId(task.$jazz.id) });
   const assigneeInitial =
     task.assigned_to && task.assigned_to.$isLoaded
@@ -128,7 +138,7 @@ function TaskCard({ task, onSelect }: { task: LoadedTask; onSelect: (task: Loade
             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
               {task.type}
             </Badge>
-            <span className="text-[10px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+            <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
           </div>
 
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
@@ -171,7 +181,7 @@ function ColumnDropZone({
   );
 }
 
-function DragTaskPreview({ task }: { task: LoadedTask }) {
+function DragTaskPreview({ task, taskIdPrefix }: { task: LoadedTask; taskIdPrefix: string }) {
   return (
     <Card className="w-[260px] border border-stone-300 bg-white py-2 shadow-2xl">
       <CardContent className="space-y-2 px-3">
@@ -180,7 +190,7 @@ function DragTaskPreview({ task }: { task: LoadedTask }) {
           <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
             {task.type}
           </Badge>
-          <span className="text-[10px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+          <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
         </div>
       </CardContent>
     </Card>
@@ -256,6 +266,7 @@ export const ProjectTasksBoardPage = () => {
   }, [project]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const projectTaskPrefix = project.$isLoaded ? project.project_key : "TASK";
 
   const visibleTasks = useMemo(() => {
     if (!activeBucket) return [];
@@ -267,7 +278,7 @@ export const ProjectTasksBoardPage = () => {
     if (!normalizedQuery) return ordered;
 
     return ordered.filter((task) => {
-      const keyText = `NUC-${Math.max(task.order, 1)}`.toLowerCase();
+      const keyText = getTaskDisplayId(task, projectTaskPrefix).toLowerCase();
       const summaryText = task.summary.toLowerCase();
       const assigneeText =
         task.assigned_to && task.assigned_to.$isLoaded
@@ -280,7 +291,9 @@ export const ProjectTasksBoardPage = () => {
         assigneeText.includes(normalizedQuery)
       );
     });
-  }, [activeBucket, normalizedQuery]);
+  }, [activeBucket, normalizedQuery, projectTaskPrefix]);
+
+  const assigneeOptions = useProjectAssigneeOptions(project.$isLoaded ? project : null);
 
   const columnTasks = useMemo<ColumnMap>(() => {
     const initial: ColumnMap = {
@@ -313,13 +326,14 @@ export const ProjectTasksBoardPage = () => {
   const findTaskById = (taskId: string) => activeBucket?.tasks.find((task) => task.$jazz.id === taskId);
 
   const createTask = () => {
-    if (!activeBucket || !profile) return;
+    if (!activeBucket || !profile || !project.$isLoaded) return;
 
     const summary = draftTask.summary.trim();
     if (!summary) return;
 
     activeBucket.tasks.$jazz.push(
       {
+        ...allocateTaskId(project),
         summary,
         type: draftTask.taskType,
         assigned_to: profile,
@@ -524,7 +538,7 @@ export const ProjectTasksBoardPage = () => {
                       ) : (
                         tasks.map((task) => (
                           <Fragment key={task.$jazz.id}>
-                            <TaskCard task={task} onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)} />
+                            <TaskCard task={task} taskIdPrefix={projectTaskPrefix} onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)} />
                           </Fragment>
                         ))
                       )}
@@ -537,12 +551,14 @@ export const ProjectTasksBoardPage = () => {
           </div>
         </div>
 
-        <DragOverlay>{draggedTask ? <DragTaskPreview task={draggedTask} /> : null}</DragOverlay>
+        <DragOverlay>{draggedTask ? <DragTaskPreview task={draggedTask} taskIdPrefix={projectTaskPrefix} /> : null}</DragOverlay>
       </DndContext>
 
       <TaskDetailsPane
         open={Boolean(loadedSelectedTask)}
         task={loadedSelectedTask}
+        assigneeOptions={assigneeOptions}
+        taskIdPrefix={projectTaskPrefix}
         onClose={() => setSelectedTaskId(null)}
       />
     </section>

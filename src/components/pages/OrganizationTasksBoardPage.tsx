@@ -19,6 +19,7 @@ import {
   type LoadedTask,
   useFilteredOrganizationTaskContainers,
 } from "@/components/tasks/organizationTasksShared";
+import { getTaskDisplayId } from "@/lib/taskIds";
 
 const boardColumns = [
   { status: "Backlog", title: "Backlog", tone: "bg-slate-100 text-slate-700" },
@@ -95,11 +96,11 @@ export const OrganizationTasksBoardPage = () => {
 
   const columns = useMemo(() => getBoardColumns(filtered), [filtered]);
 
-  const selectedTask = useMemo(() => {
+  const selectedTaskEntry = useMemo(() => {
     if (!selectedTaskId) return null;
-    const task = filtered.find((entry) => entry.task.$jazz.id === selectedTaskId)?.task ?? null;
-    return task && task.$isLoaded ? task : null;
+    return filtered.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
   }, [filtered, selectedTaskId]);
+  const selectedTask = selectedTaskEntry?.task && selectedTaskEntry.task.$isLoaded ? selectedTaskEntry.task : null;
 
   const createTask = () => {
     if (!organization.$isLoaded) return;
@@ -183,7 +184,7 @@ export const OrganizationTasksBoardPage = () => {
                         <p className="line-clamp-3 text-[13px] leading-snug font-medium text-stone-800">{entry.task.summary}</p>
                         <div className="flex items-center justify-between gap-2">
                           <ProjectBadge projectName={entry.projectName} />
-                          <span className="text-[10px] font-medium text-sky-700">{`NUC-${Math.max(entry.task.order, 1)}`}</span>
+                          <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(entry.task, entry.taskKeyPrefix)}</span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">{entry.task.type}</Badge>
@@ -202,7 +203,12 @@ export const OrganizationTasksBoardPage = () => {
         </div>
       </div>
 
-      <TaskDetailsPane open={Boolean(selectedTask)} task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+      <TaskDetailsPane
+        open={Boolean(selectedTask)}
+        task={selectedTask}
+        taskIdPrefix={selectedTaskEntry?.taskKeyPrefix}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </section>
   );
 };

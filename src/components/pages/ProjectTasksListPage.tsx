@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
+import { useProjectAssigneeOptions } from "@/components/tasks/useProjectAssigneeOptions";
 import { Account, Project, Task, TaskBucket } from "@/schema";
+import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 
 type BucketType = "Active" | "Backlog" | "Custom";
 type LoadedTask = co.loaded<typeof Task>;
@@ -77,6 +79,7 @@ const isLoadedTask = (task: unknown): task is LoadedTask =>
 function TaskRow({
   task,
   bucketId,
+  taskIdPrefix,
   onSelect,
   canMoveUp,
   canMoveDown,
@@ -85,6 +88,7 @@ function TaskRow({
 }: {
   task: LoadedTask;
   bucketId: string;
+  taskIdPrefix: string;
   onSelect: (task: LoadedTask) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -120,7 +124,7 @@ function TaskRow({
           <GripVertical className="h-3.5 w-3.5" />
         </button>
       </td>
-      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</td>
+      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</td>
       <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
       <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
         {task.tags.length > 0 ? (
@@ -192,12 +196,12 @@ function BucketBody({
   );
 }
 
-function DragTaskPreview({ task }: { task: LoadedTask }) {
+function DragTaskPreview({ task, taskIdPrefix }: { task: LoadedTask; taskIdPrefix: string }) {
   return (
     <div className="w-[680px] max-w-[96vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
       <div className="grid grid-cols-[20px_90px_minmax(0,1fr)_74px_88px_40px] items-center gap-1.5">
         <GripVertical className="h-3.5 w-3.5 text-stone-500" />
-        <span className="text-[11px] font-medium text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+        <span className="text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
         <span className="truncate text-[13px] text-stone-800">{task.summary}</span>
         <span className="text-[10px] font-semibold uppercase text-stone-600">{task.tags[0] ?? "-"}</span>
         <span className="text-[10px] font-semibold uppercase text-stone-600">{task.status}</span>
@@ -300,6 +304,8 @@ export const ProjectTasksListPage = () => {
     return [active, ...custom, backlog].filter((bucket): bucket is typeof custom[number] => Boolean(bucket));
   }, [project]);
 
+  const assigneeOptions = useProjectAssigneeOptions(project.$isLoaded ? project : null);
+
   const customBuckets = useMemo(
     () => orderedBuckets.filter((bucket) => bucket.type === "Custom"),
     [orderedBuckets]
@@ -322,8 +328,9 @@ export const ProjectTasksListPage = () => {
 
   const bucketTypeToTaskStatus = (bucketType: BucketType): LoadedTask["status"] =>
     bucketType === "Active" ? "In Progress" : "Backlog";
+  const projectTaskPrefix = project.$isLoaded ? project.project_key : "TASK";
 
-  const getTaskKey = (task: LoadedTask) => `NUC-${Math.max(task.order, 1)}`;
+  const getTaskKey = (task: LoadedTask) => getTaskDisplayId(task, projectTaskPrefix);
 
   const isBucketCollapsed = (bucketId: string) => collapsedBucketIds.has(bucketId);
 
@@ -428,7 +435,7 @@ export const ProjectTasksListPage = () => {
   };
 
   const createTaskInBucket = (bucketId: string, summary: string, taskType: TaskType) => {
-    if (!profile) return;
+    if (!profile || !project.$isLoaded) return;
 
     const bucket = project.task_buckets.find((item) => item.$jazz.id === bucketId);
     if (!bucket) return;
@@ -438,6 +445,7 @@ export const ProjectTasksListPage = () => {
 
     bucket.tasks.$jazz.push(
       {
+        ...allocateTaskId(project),
         summary: normalizedSummary,
         type: taskType,
         assigned_to: profile,
@@ -944,6 +952,7 @@ export const ProjectTasksListPage = () => {
                                     <TaskRow
                                       task={task}
                                       bucketId={bucket.$jazz.id}
+                                      taskIdPrefix={projectTaskPrefix}
                                       onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)}
                                       canMoveUp={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) > 0}
                                       canMoveDown={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) < bucket.tasks.length - 1}
@@ -968,13 +977,15 @@ export const ProjectTasksListPage = () => {
         </div>
 
         <DragOverlay>
-          {draggedTask ? <DragTaskPreview task={draggedTask} /> : null}
+          {draggedTask ? <DragTaskPreview task={draggedTask} taskIdPrefix={projectTaskPrefix} /> : null}
         </DragOverlay>
       </DndContext>
 
       <TaskDetailsPane
         open={Boolean(selectedTask)}
         task={selectedTask}
+        assigneeOptions={assigneeOptions}
+        taskIdPrefix={projectTaskPrefix}
         onClose={() => setSelectedTaskId(null)}
       />
 

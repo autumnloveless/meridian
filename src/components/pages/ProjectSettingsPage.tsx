@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import { cascadeDeleteProject } from "@/lib/cascadeDelete";
+import { normalizeProjectKey } from "@/lib/taskIds";
 
 type EditableRole = "reader" | "writer" | "manager" | "admin";
 
@@ -122,6 +123,7 @@ export const ProjectSettingsPage = () => {
   const isAuthenticated = useIsAuthenticated();
 
   const [projectName, setProjectName] = useState("");
+  const [projectKey, setProjectKey] = useState("");
   const [inviteRole, setInviteRole] = useState<EditableRole>("reader");
   const [inviteLink, setInviteLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
@@ -135,6 +137,11 @@ export const ProjectSettingsPage = () => {
     if (!project.$isLoaded) return;
     setProjectName(project.name);
   }, [project.$isLoaded, project.$isLoaded ? project.$jazz.id : null, project.$isLoaded ? project.name : null]);
+
+  useEffect(() => {
+    if (!project.$isLoaded) return;
+    setProjectKey(project.project_key);
+  }, [project.$isLoaded, project.$isLoaded ? project.$jazz.id : null, project.$isLoaded ? project.project_key : null]);
 
   const canManagePermissions = useMemo(() => {
     if (!isAuthenticated || !me.$isLoaded || !project.$isLoaded) return false;
@@ -163,6 +170,16 @@ export const ProjectSettingsPage = () => {
 
     project.$jazz.set("name", nextName);
     setProjectName(nextName);
+  };
+
+  const saveProjectKey = (event: FormEvent) => {
+    event.preventDefault();
+
+    const nextKey = normalizeProjectKey(projectKey, "PRJ");
+    if (nextKey === project.project_key) return;
+
+    project.$jazz.set("project_key", nextKey);
+    setProjectKey(nextKey);
   };
 
   const generateInviteLink = () => {
@@ -277,6 +294,32 @@ export const ProjectSettingsPage = () => {
               Save
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Task ID Prefix</CardTitle>
+          <CardDescription>
+            Used for task IDs like <span className="font-mono">{`${normalizeProjectKey(projectKey, "PRJ")}-123`}</span>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-2 sm:flex-row" onSubmit={saveProjectKey}>
+            <Input
+              aria-label="Project task ID prefix"
+              value={projectKey}
+              onChange={(event) => setProjectKey(event.target.value.toUpperCase())}
+              placeholder="PRJ"
+            />
+            <Button
+              type="submit"
+              disabled={normalizeProjectKey(projectKey, "PRJ") === project.project_key}
+            >
+              Save
+            </Button>
+          </form>
+          <p className="mt-2 text-xs text-muted-foreground">Letters and numbers only, up to 6 characters.</p>
         </CardContent>
       </Card>
 

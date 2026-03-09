@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateOrganizationDialog } from "@/components/dialogs/CreateOrganizationDialog";
 import { getProjectBasePath } from "@/lib/projectPaths";
+import { defaultProjectKeyFromName } from "@/lib/taskIds";
 
 export const OrganizationsPage = () => {
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
@@ -43,6 +44,8 @@ export const OrganizationsPage = () => {
     const organizationOwner = Group.create();
     const organization = Organization.create({
       name,
+      project_key: defaultProjectKeyFromName(name, "ORG"),
+      next_task_number: 1,
       overview: "",
       projects: [],
       documents: [

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Account, Organization, Project, Task, TaskBucket } from "@/schema";
+import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 
 export type LoadedTask = co.loaded<typeof Task>;
 export type LoadedTaskBucket = co.loaded<typeof TaskBucket>;
@@ -59,6 +60,7 @@ export type TaskContainer = {
   ownerKind: TaskOwnerKind;
   ownerId: string;
   ownerLabel: string;
+  taskKeyPrefix: string;
   projectId: string | null;
   projectName: string | null;
   bucket: LoadedTaskBucket;
@@ -112,6 +114,7 @@ export const collectOrganizationTaskContainers = (organization: LoadedOrganizati
         ownerKind: "organization",
         ownerId: organization.$jazz.id,
         ownerLabel: "Organization",
+        taskKeyPrefix: organization.project_key,
         projectId: null,
         projectName: null,
         bucket,
@@ -127,6 +130,7 @@ export const collectOrganizationTaskContainers = (organization: LoadedOrganizati
           ownerKind: "project",
           ownerId: project.$jazz.id,
           ownerLabel: project.name,
+          taskKeyPrefix: project.project_key,
           projectId: project.$jazz.id,
           projectName: project.name,
           bucket,
@@ -159,7 +163,7 @@ export const useFilteredOrganizationTaskContainers = ({
 
         if (!query) return true;
 
-        const key = `NUC-${Math.max(entry.task.order, 1)}`.toLowerCase();
+        const key = getTaskDisplayId(entry.task, entry.taskKeyPrefix).toLowerCase();
         const summary = entry.task.summary.toLowerCase();
         const assignee = entry.task.assigned_to && entry.task.assigned_to.$isLoaded ? entry.task.assigned_to.name.toLowerCase() : "";
         const projectLabel = (entry.projectName ?? "organization").toLowerCase();
@@ -211,6 +215,7 @@ export const createTaskInTarget = ({
 
   backlogBucket.tasks.$jazz.push(
     {
+      ...allocateTaskId(owner),
       summary: normalized,
       type: taskType,
       assigned_to: profile,

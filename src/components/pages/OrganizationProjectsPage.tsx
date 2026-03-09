@@ -11,6 +11,7 @@ import { CreateProjectDialog } from "@/components/dialogs/CreateProjectDialog";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import { getProjectBasePath } from "@/lib/projectPaths";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { defaultProjectKeyFromName } from "@/lib/taskIds";
 
 export const OrganizationProjectsPage = () => {
   const { orgId } = useParams();
@@ -67,6 +68,8 @@ export const OrganizationProjectsPage = () => {
     const project = Project.create(
       {
         name,
+        project_key: defaultProjectKeyFromName(name, "PRJ"),
+        next_task_number: 1,
         overview: "",
         documents: [
           { name: "Meeting Notes", content: "", children: [] },
@@ -127,6 +130,7 @@ export const OrganizationProjectsPage = () => {
     return {
       summary: task.summary,
       assigned_to: assigned,
+      sequence_number: task.sequence_number,
       status: task.status,
       details: task.details.toString(),
       custom_fields: task.custom_fields,
@@ -251,6 +255,8 @@ export const OrganizationProjectsPage = () => {
         const replacement = Project.create(
           {
             name: source.name,
+            project_key: source.project_key,
+            next_task_number: source.next_task_number,
             overview: source.overview.toString(),
             documents: source.documents.map((document) => copyDocumentTree(document)),
             requirements: source.requirements.map((requirement) => copyRequirementTree(requirement)),
