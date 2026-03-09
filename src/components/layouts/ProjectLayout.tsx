@@ -113,7 +113,7 @@ export const ProjectLayout = () => {
     <section className="grid h-full min-h-0 w-full grid-cols-1 gap-4 bg-muted/20 p-4 md:grid-cols-[240px_minmax(0,1fr)]">
       <Card size="sm" className="h-full min-h-0 rounded-xl border-border/70 !gap-0">
         <CardHeader className="border-b">
-          <h2 className="whitespace-normal break-all text-base font-semibold leading-tight">{projectTitle}</h2>
+          <h2 className="truncate text-base font-semibold leading-tight" title={projectTitle}>{projectTitle}</h2>
           <p className="mt-1 break-all text-xs text-muted-foreground">{organizationSubtitle ?? "Organization"}</p>
         </CardHeader>
 
