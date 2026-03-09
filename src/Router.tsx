@@ -2,7 +2,6 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { BaseLayout } from "./components/layouts/BaseLayout";
 import { ProjectLayout } from "./components/layouts/ProjectLayout";
 import { OverviewPage } from "./components/pages/OverviewPage";
-import { OrganizationProjectsPage } from "./components/pages/OrganizationProjectsPage";
 import { ProjectsPage } from "./components/pages/ProjectsPage";
 import { TagsPage } from "./components/pages/TagsPage";
 import { PeoplePage } from "./components/pages/PeoplePage";
@@ -33,7 +32,6 @@ export const Router = () => {
                     <Route path="/" element={<Navigate to="/overview" replace />} />
                     <Route path="/overview" element={<OverviewPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/organizations/:orgId" element={<OrganizationProjectsPage />} />
                     <Route path="/tags" element={<TagsPage />} />
                     <Route path="/people" element={<PeoplePage />} />
 
