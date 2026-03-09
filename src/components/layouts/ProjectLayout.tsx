@@ -398,6 +398,7 @@ const DocsTreeItem = ({
         <ContextMenuTrigger asChild>
           <NavLink
             to={`/projects/${projectId}/docs/${docId}`}
+            title={document.name}
             draggable
             onDragStart={(event) => {
               event.dataTransfer.effectAllowed = "move";
