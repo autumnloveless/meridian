@@ -194,12 +194,15 @@ export const OrganizationLayout = () => {
         </div>
       ) : null}
 
-      <Card size="sm" className="hidden h-full min-h-0 rounded-xl border-border/70 !gap-0 md:flex">
+      <Card
+        size="sm"
+        className="hidden h-full min-h-0 rounded-xl border-border/70 !gap-0 md:sticky md:top-4 md:flex md:h-[calc(100dvh-var(--app-sidebar-height-offset))] md:max-h-[calc(100dvh-var(--app-sidebar-height-offset))] md:self-start"
+      >
         <CardHeader className="border-b">
           <h2 className="whitespace-normal break-all text-base font-semibold leading-tight">{organizationTitle}</h2>
         </CardHeader>
 
-        <CardContent className="flex h-full min-h-0 flex-col gap-2 px-3 py-3">
+        <CardContent className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto px-3 py-3">
           {navigationContent}
         </CardContent>
       </Card>

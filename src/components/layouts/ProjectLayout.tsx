@@ -249,13 +249,16 @@ export const ProjectLayout = () => {
         </div>
       ) : null}
 
-      <Card size="sm" className="hidden h-full min-h-0 rounded-xl border-border/70 !gap-0 md:flex">
+      <Card
+        size="sm"
+        className="hidden h-full min-h-0 rounded-xl border-border/70 !gap-0 md:sticky md:top-4 md:flex md:h-[calc(100dvh-var(--app-sidebar-height-offset))] md:max-h-[calc(100dvh-var(--app-sidebar-height-offset))] md:self-start"
+      >
         <CardHeader className="border-b">
           <h2 className="truncate text-base font-semibold leading-tight" title={projectTitle}>{projectTitle}</h2>
           <p className="mt-1 break-all text-xs text-muted-foreground">{organizationSubtitle ?? "Organization"}</p>
         </CardHeader>
 
-        <CardContent className="flex h-full min-h-0 flex-col gap-2 px-3 py-3">
+        <CardContent className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto px-3 py-3">
           {navigationContent}
         </CardContent>
       </Card>
