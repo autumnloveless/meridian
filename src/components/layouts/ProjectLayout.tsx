@@ -105,7 +105,7 @@ export const ProjectLayout = () => {
       </Card>
 
       <Card className="h-full min-h-0">
-        <CardContent className="h-full min-h-0 p-4 md:p-6">
+        <CardContent className="h-full min-h-0">
           <Outlet />
         </CardContent>
       </Card>
