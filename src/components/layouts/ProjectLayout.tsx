@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useAccount, useCoState } from "jazz-tools/react";
 import {
@@ -42,6 +42,7 @@ export const ProjectLayout = () => {
   const { projectId, orgId } = useParams();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const syncedRecentProjectIdRef = useRef<string | null>(null);
 
   const project = useCoState(Project, projectId, {
     resolve: {
@@ -65,14 +66,17 @@ export const ProjectLayout = () => {
 
   useEffect(() => {
     if (!account.$isLoaded || !project.$isLoaded || !projectId) return;
+    if (syncedRecentProjectIdRef.current === projectId) return;
 
     const recentProjects = account.root.recent_projects;
-    if (recentProjects[0]?.$jazz.id === projectId) return;
+    if (recentProjects[0]?.$jazz.id !== projectId) {
+      recentProjects.$jazz.remove((item) => item.$jazz.id === projectId);
+      recentProjects.$jazz.unshift(project);
+      recentProjects.$jazz.retain((_, index) => index < 25);
+    }
 
-    recentProjects.$jazz.remove((item) => item.$jazz.id === projectId);
-    recentProjects.$jazz.unshift(project);
-    recentProjects.$jazz.retain((_, index) => index < 25);
-  }, [account, project, projectId]);
+    syncedRecentProjectIdRef.current = projectId;
+  }, [account.$isLoaded, project.$isLoaded, projectId]);
 
   const isInTasksSection = projectId
     ? location.pathname.startsWith(`${projectBasePath}/tasks`)

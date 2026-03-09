@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useParams } from "react-router";
 import { useAccount, useCoState } from "jazz-tools/react";
 
 import { Account, Organization } from "@/schema";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 import {
-  OrganizationTaskCreateBar,
   ProjectBadge,
   createTaskInTarget,
   ensureDefaultBuckets,
@@ -21,6 +30,7 @@ export const OrganizationTasksArchivePage = () => {
   const { orgId } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [taskType, setTaskType] = useState<LoadedTask["type"]>("Task");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState(() => (orgId ? `org:${orgId}` : ""));
   const [summary, setSummary] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -90,6 +100,13 @@ export const OrganizationTasksArchivePage = () => {
       taskType,
     });
     setSummary("");
+    setIsCreateDialogOpen(false);
+  };
+
+  const openCreateDialog = (nextType: LoadedTask["type"]) => {
+    setTaskType(nextType);
+    setSummary("");
+    setIsCreateDialogOpen(true);
   };
 
   if (!organization.$isLoaded) {
@@ -111,48 +128,81 @@ export const OrganizationTasksArchivePage = () => {
             />
           </div>
 
-          <OrganizationTaskCreateBar
-            organization={organization}
-            profile={profile}
-            selectedTargetId={selectedTargetId || `org:${organization.$jazz.id}`}
-            onTargetChange={setSelectedTargetId}
-            summary={summary}
-            onSummaryChange={setSummary}
-            taskType={taskType}
-            onTaskTypeChange={setTaskType}
-            onCreate={createTask}
-          />
+          <div className="hidden md:block">
+            <div className="font-[Inter] flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+              <select
+                value={taskType}
+                onChange={(event) => setTaskType(event.target.value as LoadedTask["type"])}
+                className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+                aria-label="Task type"
+              >
+                <option value="Task">Task</option>
+                <option value="Bug">Bug</option>
+              </select>
+
+              <select
+                value={selectedTargetId || `org:${organization.$jazz.id}`}
+                onChange={(event) => setSelectedTargetId(event.target.value)}
+                className="h-7 rounded border border-stone-300 bg-white px-2 text-xs text-stone-800"
+                aria-label="Target project"
+              >
+                <option value={`org:${organization.$jazz.id}`}>Organization Backlog</option>
+                {[...organization.projects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
+                  <option key={project.$jazz.id} value={`project:${project.$jazz.id}`}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+
+              <Input
+                className="h-7 min-w-[220px] flex-1 text-xs"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") createTask();
+                }}
+                placeholder="Create task"
+                aria-label="Create task"
+              />
+
+              <Button size="sm" className="h-7 text-xs" onClick={createTask} disabled={!profile || !summary.trim()}>
+                Create task
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-2 md:hidden">
+      <div className="md:hidden">
         {archived.length === 0 ? (
-          <div className="rounded-sm border border-stone-200 bg-white px-3 py-3 text-xs text-stone-500">No archived tasks found.</div>
+          <div className="border border-stone-200 bg-white px-3 py-3 text-xs text-stone-500">No archived tasks found.</div>
         ) : (
-          archived.map((entry) => {
-            const task = entry.task;
-            return (
-              <button
-                key={task.$jazz.id}
-                type="button"
-                className="w-full rounded-sm border border-stone-200 bg-white px-3 py-3 text-left"
-                onClick={() => setSelectedTaskId(task.$jazz.id)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
-                    {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm font-medium text-stone-800">{task.summary}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <ProjectBadge projectName={entry.projectName} />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-600">{task.status}</span>
-                </div>
-              </button>
-            );
-          })
+          <div className="overflow-hidden border border-stone-200 bg-white">
+            {archived.map((entry) => {
+              const task = entry.task;
+              return (
+                <button
+                  key={task.$jazz.id}
+                  type="button"
+                  className="w-full border-b border-stone-200 px-3 py-3 text-left last:border-b-0"
+                  onClick={() => setSelectedTaskId(task.$jazz.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-sky-700">{`NUC-${Math.max(task.order, 1)}`}</span>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+                      {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-stone-800">{task.summary}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <ProjectBadge projectName={entry.projectName} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-600">{task.status}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -205,6 +255,78 @@ export const OrganizationTasksArchivePage = () => {
       </div>
 
       <TaskDetailsPane open={Boolean(selectedTask)} task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+
+      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-30 md:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="icon-lg" className="size-12 rounded-full shadow-lg" aria-label="Create issue">
+              <Plus className="size-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => openCreateDialog("Task")}>New task</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => openCreateDialog("Bug")}>New bug</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="h-dvh w-dvw max-w-none rounded-none border-0 p-4 sm:h-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-xl sm:border">
+          <DialogHeader>
+            <DialogTitle>Create issue</DialogTitle>
+            <DialogDescription>Create a new item and place it in a target backlog.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Type</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={taskType}
+                onChange={(event) => setTaskType(event.target.value as LoadedTask["type"])}
+              >
+                <option value="Task">Task</option>
+                <option value="Bug">Bug</option>
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Target</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={selectedTargetId || `org:${organization.$jazz.id}`}
+                onChange={(event) => setSelectedTargetId(event.target.value)}
+              >
+                <option value={`org:${organization.$jazz.id}`}>Organization Backlog</option>
+                {[...organization.projects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
+                  <option key={project.$jazz.id} value={`project:${project.$jazz.id}`}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Summary</span>
+              <Input
+                className="h-10"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                placeholder="Describe the issue"
+              />
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={createTask} disabled={!profile || !summary.trim()}>
+              Create issue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

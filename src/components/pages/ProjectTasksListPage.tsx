@@ -17,10 +17,19 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, GripVertical, MoreHorizontal, Search } from "lucide-react";
+import { ChevronDown, GripVertical, MoreHorizontal, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 import { Account, Project, Task, TaskBucket } from "@/schema";
 
@@ -31,6 +40,7 @@ type TaskType = "Task" | "Bug";
 type DraftTask = {
   summary: string;
   taskType: TaskType;
+  bucketId: string;
 };
 
 type ActiveDrag = {
@@ -46,6 +56,7 @@ type DropIndicator = {
 const defaultDraftTask: DraftTask = {
   summary: "",
   taskType: "Task",
+  bucketId: "",
 };
 
 const TASK_PREFIX = "task:";
@@ -178,11 +189,11 @@ export const ProjectTasksListPage = () => {
   const { projectId } = useParams();
   const [editingBucketId, setEditingBucketId] = useState<string | null>(null);
   const [editingBucketName, setEditingBucketName] = useState("");
-  const [draftTasksByBucketId, setDraftTasksByBucketId] = useState<Record<string, DraftTask>>({});
+  const [createDraft, setCreateDraft] = useState<DraftTask>(defaultDraftTask);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [ticketTypeFilter, setTicketTypeFilter] = useState<"All" | TaskType>("All");
   const [collapsedBucketIds, setCollapsedBucketIds] = useState<Set<string>>(new Set());
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -258,6 +269,21 @@ export const ProjectTasksListPage = () => {
     [orderedBuckets]
   );
 
+  const createTargetBuckets = useMemo(
+    () => orderedBuckets.filter((bucket) => bucket.type !== "Active"),
+    [orderedBuckets]
+  );
+
+  useEffect(() => {
+    if (!isCreateDialogOpen) return;
+    if (createDraft.bucketId) return;
+
+    const defaultBucket = createTargetBuckets.find((bucket) => bucket.type === "Backlog") ?? createTargetBuckets[0];
+    if (!defaultBucket) return;
+
+    setCreateDraft((current) => ({ ...current, bucketId: defaultBucket.$jazz.id }));
+  }, [createDraft.bucketId, createTargetBuckets, isCreateDialogOpen]);
+
   const bucketTypeToTaskStatus = (bucketType: BucketType): LoadedTask["status"] =>
     bucketType === "Active" ? "In Progress" : "Backlog";
 
@@ -275,13 +301,6 @@ export const ProjectTasksListPage = () => {
       }
       return next;
     });
-  };
-
-  const getDraftTask = (bucketId: string): DraftTask =>
-    draftTasksByBucketId[bucketId] ?? defaultDraftTask;
-
-  const setDraftTask = (bucketId: string, nextDraft: DraftTask) => {
-    setDraftTasksByBucketId((current) => ({ ...current, [bucketId]: nextDraft }));
   };
 
   const normalizeTaskOrder = (bucket: co.loaded<typeof TaskBucket>) => {
@@ -372,20 +391,19 @@ export const ProjectTasksListPage = () => {
     });
   };
 
-  const createTaskInBucket = (bucketId: string) => {
+  const createTaskInBucket = (bucketId: string, summary: string, taskType: TaskType) => {
     if (!profile) return;
 
     const bucket = project.task_buckets.find((item) => item.$jazz.id === bucketId);
     if (!bucket) return;
 
-    const draftTask = getDraftTask(bucketId);
-    const summary = draftTask.summary.trim();
-    if (!summary) return;
+    const normalizedSummary = summary.trim();
+    if (!normalizedSummary) return;
 
     bucket.tasks.$jazz.push(
       {
-        summary,
-        type: draftTask.taskType,
+        summary: normalizedSummary,
+        type: taskType,
         assigned_to: profile,
         status: bucketTypeToTaskStatus(bucket.type),
         details: "",
@@ -394,8 +412,25 @@ export const ProjectTasksListPage = () => {
         tags: [],
       }
     );
+  };
 
-    setDraftTask(bucketId, { ...draftTask, summary: "" });
+  const openCreateDialog = (taskType: TaskType) => {
+    setCreateDraft((current) => ({
+      ...current,
+      taskType,
+      summary: "",
+      bucketId:
+        current.bucketId || createTargetBuckets.find((bucket) => bucket.type === "Backlog")?.$jazz.id || createTargetBuckets[0]?.$jazz.id || "",
+    }));
+    setIsCreateDialogOpen(true);
+  };
+
+  const submitCreateTask = () => {
+    if (!createDraft.bucketId) return;
+
+    createTaskInBucket(createDraft.bucketId, createDraft.summary, createDraft.taskType);
+    setIsCreateDialogOpen(false);
+    setCreateDraft((current) => ({ ...current, summary: "" }));
   };
 
   const findBucketByTaskId = (taskId: string) =>
@@ -564,15 +599,6 @@ export const ProjectTasksListPage = () => {
     const customIndex = customBuckets.findIndex((item) => item.$jazz.id === bucket.$jazz.id);
     const isEditing = editingBucketId === bucket.$jazz.id;
     const collapsed = isBucketCollapsed(bucket.$jazz.id);
-    const taskTypeCounts = bucket.tasks.reduce(
-      (counts, task) => {
-        const normalizedType = String((task as { type?: string }).type ?? "").toLowerCase();
-        if (normalizedType === "task") counts.task += 1;
-        if (normalizedType === "bug") counts.bug += 1;
-        return counts;
-      },
-      { task: 0, bug: 0 }
-    );
 
     return (
       <div className="flex items-center justify-between gap-2 px-3 py-1.5">
@@ -606,14 +632,6 @@ export const ProjectTasksListPage = () => {
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`} />
             <span className="font-semibold text-stone-800">{bucket.name}</span>
             <span>{`${bucket.tasks.length} issue${bucket.tasks.length === 1 ? "" : "s"}`}</span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-semibold text-sky-700">
-                {taskTypeCounts.task}
-              </span>
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-100 px-1 text-[10px] font-semibold text-red-700">
-                {taskTypeCounts.bug}
-              </span>
-            </span>
           </button>
         )}
 
@@ -707,16 +725,6 @@ export const ProjectTasksListPage = () => {
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
-          <select
-            className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-700 sm:h-7 sm:w-auto sm:text-xs"
-            value={ticketTypeFilter}
-            onChange={(event) => setTicketTypeFilter(event.target.value as "All" | TaskType)}
-            aria-label="Filter by ticket type"
-          >
-            <option value="All">All types</option>
-            <option value="Task">Task</option>
-            <option value="Bug">Bug</option>
-          </select>
         </div>
       </div>
 
@@ -732,10 +740,6 @@ export const ProjectTasksListPage = () => {
           {orderedBuckets.map((bucket) => {
             const normalizedQuery = searchQuery.trim().toLowerCase();
             const filteredTasks = bucket.tasks.filter((task) => {
-              if (ticketTypeFilter !== "All" && task.type !== ticketTypeFilter) {
-                return false;
-              }
-
               if (!normalizedQuery) return true;
 
               const keyText = getTaskKey(task).toLowerCase();
@@ -753,7 +757,6 @@ export const ProjectTasksListPage = () => {
             });
 
             const taskIds = filteredTasks.map((task) => taskDndId(task.$jazz.id));
-            const draftTask = getDraftTask(bucket.$jazz.id);
             const collapsed = isBucketCollapsed(bucket.$jazz.id);
             const indicatorIndex =
               dropIndicator && dropIndicator.bucketId === bucket.$jazz.id
@@ -768,9 +771,9 @@ export const ProjectTasksListPage = () => {
 
                 {!collapsed ? (
                   <div className="p-0">
-                    <div className="space-y-2 p-2 md:hidden">
+                    <div className="space-y-0 md:hidden">
                       {filteredTasks.length === 0 ? (
-                        <div className="rounded border border-dashed border-stone-200 px-3 py-3 text-xs text-stone-500">
+                        <div className="border-b border-dashed border-stone-200 px-3 py-3 text-xs text-stone-500 last:border-b-0">
                           No tasks in this bucket.
                         </div>
                       ) : (
@@ -779,7 +782,7 @@ export const ProjectTasksListPage = () => {
                             key={task.$jazz.id}
                             role="button"
                             tabIndex={0}
-                            className="w-full rounded border border-stone-200 bg-white px-3 py-2 text-left"
+                            className="w-full border-b border-stone-200 bg-white px-3 py-3 text-left last:border-b-0"
                             onClick={() => setSelectedTaskId(task.$jazz.id)}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
@@ -867,49 +870,6 @@ export const ProjectTasksListPage = () => {
                       </table>
                     </div>
 
-                    <div className="flex flex-col items-stretch gap-2 border-t border-stone-200 bg-stone-50 px-2 py-1.5 sm:flex-row sm:items-center">
-                      <select
-                        value={draftTask.taskType}
-                        onChange={(event) =>
-                          setDraftTask(bucket.$jazz.id, {
-                            ...draftTask,
-                            taskType: event.target.value as TaskType,
-                          })
-                        }
-                        className="h-9 rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:text-xs"
-                        aria-label={`Task type for ${bucket.name}`}
-                      >
-                        <option value="Task">Task</option>
-                        <option value="Bug">Bug</option>
-                      </select>
-
-                      <Input
-                        className="h-9 text-sm sm:h-7 sm:text-xs"
-                        value={draftTask.summary}
-                        onChange={(event) =>
-                          setDraftTask(bucket.$jazz.id, {
-                            ...draftTask,
-                            summary: event.target.value,
-                          })
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            createTaskInBucket(bucket.$jazz.id);
-                          }
-                        }}
-                        placeholder="Create issue"
-                        aria-label={`New task name for ${bucket.name}`}
-                      />
-
-                      <Button
-                        size="sm"
-                        className="h-9 text-sm sm:h-7 sm:text-xs"
-                        onClick={() => createTaskInBucket(bucket.$jazz.id)}
-                        disabled={!profile || !draftTask.summary.trim()}
-                      >
-                        Create issue
-                      </Button>
-                    </div>
                   </div>
                 ) : null}
               </div>
@@ -927,6 +887,81 @@ export const ProjectTasksListPage = () => {
         task={selectedTask}
         onClose={() => setSelectedTaskId(null)}
       />
+
+      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-30 md:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="icon-lg" className="size-12 rounded-full shadow-lg" aria-label="Create issue">
+              <Plus className="size-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => openCreateDialog("Task")}>New task</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => openCreateDialog("Bug")}>New bug</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="h-dvh w-dvw max-w-none rounded-none border-0 p-4 sm:h-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-xl sm:border">
+          <DialogHeader>
+            <DialogTitle>Create issue</DialogTitle>
+            <DialogDescription>Create a new item and place it into a backlog bucket.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Type</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={createDraft.taskType}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, taskType: event.target.value as TaskType }))}
+              >
+                <option value="Task">Task</option>
+                <option value="Bug">Bug</option>
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Bucket</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={createDraft.bucketId}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, bucketId: event.target.value }))}
+              >
+                {createTargetBuckets.map((bucket) => (
+                  <option key={bucket.$jazz.id} value={bucket.$jazz.id}>
+                    {bucket.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Summary</span>
+              <Input
+                className="h-10"
+                value={createDraft.summary}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, summary: event.target.value }))}
+                placeholder="Describe the issue"
+              />
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={submitCreateTask}
+              disabled={!profile || !createDraft.summary.trim() || !createDraft.bucketId}
+            >
+              Create issue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
