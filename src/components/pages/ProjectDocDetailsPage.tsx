@@ -44,6 +44,8 @@ const formatRelativeTimestamp = (value: number, now: number) => {
 export const ProjectDocDetailsPage = () => {
   const { docId } = useParams();
   const document = useCoState(Document, docId);
+  const remoteTitle = document.$isLoaded ? document.name : "";
+  const remoteContent = document.$isLoaded ? document.content.toString() : "";
 
   const editor = useCreateBlockNote();
   const [draftTitle, setDraftTitle] = useState("");
@@ -69,23 +71,23 @@ export const ProjectDocDetailsPage = () => {
   useEffect(() => {
     if (!document.$isLoaded) return;
 
-    const content = document.content.toString();
-    setDraftTitle(document.name);
-    setLastSavedTitle(document.name);
-    setDraftContent(content);
-    setLastSavedContent(content);
+    setDraftTitle(remoteTitle);
+    setLastSavedTitle(remoteTitle);
+    setDraftContent(remoteContent);
+    setLastSavedContent(remoteContent);
     setSaveError(null);
-  }, [document]);
+  }, [document.$isLoaded, remoteTitle, remoteContent]);
 
   useEffect(() => {
     if (!document.$isLoaded) return;
+    if (remoteContent === latestContentRef.current) return;
 
     let canceled = false;
 
     const hydrateEditor = async () => {
       isHydratingEditorRef.current = true;
       try {
-        const blocks = await editor.tryParseMarkdownToBlocks(document.content.toString());
+        const blocks = await editor.tryParseMarkdownToBlocks(remoteContent);
         if (canceled) return;
         editor.replaceBlocks(editor.document, blocks.length > 0 ? blocks : []);
       } finally {
@@ -98,7 +100,7 @@ export const ProjectDocDetailsPage = () => {
     return () => {
       canceled = true;
     };
-  }, [document, editor]);
+  }, [document.$isLoaded, remoteContent, editor]);
 
   const saveTitle = useCallback(async () => {
     if (!document.$isLoaded) return;

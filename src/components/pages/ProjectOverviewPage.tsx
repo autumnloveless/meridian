@@ -12,6 +12,7 @@ import "@blocknote/mantine/style.css";
 export const ProjectOverviewPage = () => {
   const { projectId } = useParams();
   const project = useCoState(Project, projectId);
+  const remoteOverview = project.$isLoaded ? project.overview.toString() : "";
 
   const editor = useCreateBlockNote();
   const [draftOverview, setDraftOverview] = useState("");
@@ -29,21 +30,21 @@ export const ProjectOverviewPage = () => {
   useEffect(() => {
     if (!project.$isLoaded) return;
 
-    const overview = project.overview.toString();
-    setDraftOverview(overview);
-    setLastSavedOverview(overview);
+    setDraftOverview(remoteOverview);
+    setLastSavedOverview(remoteOverview);
     setSaveError(null);
-  }, [project]);
+  }, [project.$isLoaded, remoteOverview]);
 
   useEffect(() => {
     if (!project.$isLoaded) return;
+    if (remoteOverview === latestOverviewRef.current) return;
 
     let canceled = false;
 
     const hydrateEditor = async () => {
       isHydratingEditorRef.current = true;
       try {
-        const blocks = await editor.tryParseMarkdownToBlocks(project.overview.toString());
+        const blocks = await editor.tryParseMarkdownToBlocks(remoteOverview);
         if (canceled) return;
         editor.replaceBlocks(editor.document, blocks.length > 0 ? blocks : []);
       } finally {
@@ -56,7 +57,7 @@ export const ProjectOverviewPage = () => {
     return () => {
       canceled = true;
     };
-  }, [project, editor]);
+  }, [project.$isLoaded, remoteOverview, editor]);
 
   const saveOverview = useCallback(async () => {
     if (!project.$isLoaded) return;

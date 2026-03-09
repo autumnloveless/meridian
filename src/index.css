@@ -142,3 +142,14 @@
 .blocknote-readable-links a[href]:hover {
   opacity: 0.85;
 }
+
+/* Google Docs often pastes list items as li > p, and default typography
+   margins can make bullets look double-spaced. Keep list-item paragraphs tight. */
+.blocknote-readable-links .ProseMirror li > p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.blocknote-readable-links .ProseMirror li > p + p {
+  margin-top: 0.25rem;
+}
