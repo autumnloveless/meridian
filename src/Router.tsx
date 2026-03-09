@@ -8,6 +8,8 @@ import { OrganizationOverviewPage } from "./components/pages/OrganizationOvervie
 import { OrganizationProjectsPage } from "./components/pages/OrganizationProjectsPage";
 import { OrganizationPeoplePage } from "./components/pages/OrganizationPeoplePage";
 import { OrganizationDocsPage } from "./components/pages/OrganizationDocsPage";
+import { OrganizationDocDetailsPage } from "./components/pages/OrganizationDocDetailsPage";
+import { OrganizationSettingsPage } from "./components/pages/OrganizationSettingsPage";
 import { TagsPage } from "./components/pages/TagsPage";
 import { ProjectOverviewPage } from "./components/pages/ProjectOverviewPage";
 import { ProjectTagsPage } from "./components/pages/ProjectTagsPage";
@@ -44,6 +46,8 @@ export const Router = () => {
                         <Route path="projects" element={<OrganizationProjectsPage />} />
                         <Route path="people" element={<OrganizationPeoplePage />} />
                         <Route path="docs" element={<OrganizationDocsPage />} />
+                        <Route path="docs/:docId" element={<OrganizationDocDetailsPage />} />
+                        <Route path="settings" element={<OrganizationSettingsPage />} />
                     </Route>
 
                     <Route path="/organizations/:orgId/projects/:projectId" element={<ProjectLayout />}>

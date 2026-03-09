@@ -1,10 +1,13 @@
-import { NavLink, Outlet, useParams } from "react-router";
+import { useMemo } from "react";
+import { NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
 
 import { Organization } from "@/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { DocsNavSection } from "@/components/docs/DocsNavSection";
 import { cn } from "@/lib/utils";
+import { getOrganizationBasePath } from "@/lib/projectPaths";
 
 const organizationNavItems = [
   { to: "overview", label: "Overview" },
@@ -15,7 +18,29 @@ const organizationNavItems = [
 
 export const OrganizationLayout = () => {
   const { orgId } = useParams();
-  const organization = useCoState(Organization, orgId);
+  const location = useLocation();
+
+  const organization = useCoState(Organization, orgId, {
+    resolve: {
+      documents: {
+        $each: true,
+      },
+    },
+  });
+
+  const organizationBasePath = useMemo(() => {
+    if (!orgId) return "";
+    return getOrganizationBasePath(orgId);
+  }, [orgId]);
+
+  const isInDocsSection = orgId
+    ? location.pathname.startsWith(`${organizationBasePath}/docs`)
+    : false;
+
+  const activeDocId = useMemo(() => {
+    const match = location.pathname.match(/\/docs\/(.+)$/);
+    return match?.[1] ?? null;
+  }, [location.pathname]);
 
   const organizationTitle = organization.$isLoaded
     ? organization.name
@@ -32,24 +57,51 @@ export const OrganizationLayout = () => {
           <CardTitle className="truncate text-lg">{organizationTitle}</CardTitle>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="flex h-full flex-col gap-2">
           <nav aria-label="Organization navigation" className="flex flex-col gap-1">
             {organizationNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    buttonVariants({ variant: "ghost" }),
-                    "w-full justify-start",
-                    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                  )
-                }
-              >
-                {item.label}
-              </NavLink>
+              <div key={item.to} className="flex flex-col gap-1">
+                {item.to === "docs" && organization.$isLoaded ? (
+                  <DocsNavSection
+                    to="docs"
+                    label="Docs"
+                    isActive={isInDocsSection}
+                    basePath={organizationBasePath}
+                    documents={organization.documents}
+                    activeDocId={activeDocId}
+                  />
+                ) : (
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        buttonVariants({ variant: "ghost" }),
+                        "w-full justify-start",
+                        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                )}
+              </div>
             ))}
           </nav>
+
+          <div className="mt-auto border-t pt-2">
+            <NavLink
+              to="settings"
+              className={({ isActive }) =>
+                cn(
+                  buttonVariants({ variant: "ghost" }),
+                  "w-full justify-start",
+                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                )
+              }
+            >
+              Settings
+            </NavLink>
+          </div>
         </CardContent>
       </Card>
 

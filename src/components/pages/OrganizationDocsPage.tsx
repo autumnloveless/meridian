@@ -1,34 +1,42 @@
+import { useMemo } from "react";
 import { useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
 
 import { Organization } from "@/schema";
+import { DocsIndexPage } from "@/components/docs/DocsIndexPage";
+import { getOrganizationBasePath } from "@/lib/projectPaths";
 
 export const OrganizationDocsPage = () => {
   const { orgId } = useParams();
+  const organizationBasePath = useMemo(() => {
+    if (!orgId) return "";
+    return getOrganizationBasePath(orgId);
+  }, [orgId]);
+
   const organization = useCoState(Organization, orgId, {
     resolve: {
-      documents: { $each: true },
+      documents: {
+        $each: {
+          children: {
+            $each: true,
+          },
+        },
+      },
     },
   });
 
-  if (!organization.$isLoaded) {
-    return <div className="text-sm text-muted-foreground">Loading organization docs...</div>;
+  if (!orgId) {
+    return <div className="text-sm text-red-700">Invalid organization URL.</div>;
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Docs</h2>
-      {organization.documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No organization docs yet.</p>
-      ) : (
-        <ul className="space-y-1">
-          {organization.documents.map((document) => (
-            <li key={document.$jazz.id} className="rounded border bg-background px-3 py-2 text-sm">
-              {document.name}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <DocsIndexPage
+      title="Organization Docs"
+      documents={organization.$isLoaded ? organization.documents : []}
+      isLoaded={organization.$isLoaded}
+      basePath={organizationBasePath}
+      loadingMessage="Loading organization docs..."
+      emptyMessage="Create your first page from the Docs sidebar button."
+    />
   );
 };

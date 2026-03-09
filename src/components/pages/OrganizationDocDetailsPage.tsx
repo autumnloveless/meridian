@@ -1,5 +1,5 @@
 import { DocumentEditorPage } from "@/components/docs/DocumentEditorPage";
 
-export const ProjectDocDetailsPage = () => {
+export const OrganizationDocDetailsPage = () => {
   return <DocumentEditorPage />;
 };

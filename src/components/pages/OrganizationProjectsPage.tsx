@@ -29,16 +29,19 @@ export const OrganizationProjectsPage = () => {
   const createProject = ({ name }: { name: string }) => {
     if (!organization.$isLoaded) return;
 
-    const project = Project.create({
-      name,
-      overview: co.richText().create(""),
-      documents: [Document.create({ name: "Notes", content: co.richText().create(""), children: [] })],
-      requirements: [],
-      tests: [],
-      test_results: [],
-      people: [],
-      task_buckets: [],
-    });
+    const project = Project.create(
+      {
+        name,
+        overview: co.richText().create(""),
+        documents: [Document.create({ name: "Notes", content: co.richText().create(""), children: [] })],
+        requirements: [],
+        tests: [],
+        test_results: [],
+        people: [],
+        task_buckets: [],
+      },
+      { owner: organization.$jazz.owner }
+    );
 
     organization.projects.$jazz.push(project);
   };
