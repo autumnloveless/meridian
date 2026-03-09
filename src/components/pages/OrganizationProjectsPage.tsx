@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { MoreHorizontal } from "lucide-react";
-import { co } from "jazz-tools";
-import { useAccount, useCoState } from "jazz-tools/react";
+import { Group } from "jazz-tools";
+import { useAccount, useCoState, useIsAuthenticated } from "jazz-tools/react";
 
-import { Account, Document, Organization, Person, Project, Requirement, Task, TaskBucket, Test, TestReport, TestResult } from "@/schema";
+import { Account, Organization, Project } from "@/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/components/dialogs/CreateProjectDialog";
@@ -14,6 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 export const OrganizationProjectsPage = () => {
   const { orgId } = useParams();
+  const isAuthenticated = useIsAuthenticated();
+  const account = useAccount(Account);
   const me = useAccount(Account, {
     resolve: { profile: true },
     select: (account) => (account.$isLoaded ? account.profile : null),
@@ -35,17 +37,41 @@ export const OrganizationProjectsPage = () => {
     return [...organization.projects].sort((left, right) => left.name.localeCompare(right.name));
   }, [organization]);
 
+  const organizationOwner = organization.$isLoaded ? organization.$jazz.owner : null;
+
+  const createProjectOwnerGroup = () => {
+    if (!organizationOwner) return null;
+    const projectOwner = Group.create();
+    projectOwner.addMember(organizationOwner);
+    return projectOwner;
+  };
+
+  const projectInheritsFromOrganization = (project: typeof projects[number]) => {
+    if (!organizationOwner) return false;
+    const orgOwnerId = organizationOwner.$jazz.id;
+    if (project.$jazz.owner.$jazz.id === orgOwnerId) return false;
+    return project.$jazz.owner.getParentGroups().some((group) => group.$jazz.id === orgOwnerId);
+  };
+
+  const canManageOrganization = useMemo(() => {
+    if (!isAuthenticated || !account.$isLoaded || !organization.$isLoaded) return false;
+    return account.canManage(organization);
+  }, [isAuthenticated, account, organization]);
+
   const createProject = ({ name }: { name: string }) => {
     if (!organization.$isLoaded) return;
+
+    const projectOwner = createProjectOwnerGroup();
+    if (!projectOwner) return;
 
     const project = Project.create(
       {
         name,
-        overview: co.richText().create(""),
+        overview: "",
         documents: [
-          Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
-          Document.create({ name: "Design Docs", content: co.richText().create(""), children: [] }),
-          Document.create({ name: "Technical Docs", content: co.richText().create(""), children: [] }),
+          { name: "Meeting Notes", content: "", children: [] },
+          { name: "Design Docs", content: "", children: [] },
+          { name: "Technical Docs", content: "", children: [] },
         ],
         requirements: [],
         tests: [],
@@ -53,7 +79,7 @@ export const OrganizationProjectsPage = () => {
         people: [],
         task_buckets: [],
       },
-      { owner: organization.$jazz.owner }
+      { owner: projectOwner }
     );
 
     organization.projects.$jazz.push(project);
@@ -61,84 +87,98 @@ export const OrganizationProjectsPage = () => {
 
   const copyDocumentTree = (document: any): any => {
     const children = document?.children && document.children.$isLoaded ? [...document.children] : [];
-    return Document.create({
+    return {
       name: document.name,
-      content: co.richText().create(document.content.toString()),
+      content: document.content.toString(),
       children: children.map((child: any) => copyDocumentTree(child)),
-    });
+    };
   };
 
   const copyRequirementTree = (requirement: any): any => {
     const children = requirement?.children && requirement.children.$isLoaded ? [...requirement.children] : [];
-    return Requirement.create({
+    return {
       name: requirement.name,
-      details: co.richText().create(requirement.details.toString()),
+      details: requirement.details.toString(),
       version: requirement.version,
       status: requirement.status,
       children: children.map((child: any) => copyRequirementTree(child)),
-    });
+    };
   };
 
   const copyTestTree = (test: any): any => {
     const children = test?.children && test.children.$isLoaded ? [...test.children] : [];
-    return Test.create({
+    return {
       name: test.name,
-      details: co.richText().create(test.details.toString()),
+      details: test.details.toString(),
       version: test.version,
       is_folder: test.is_folder,
       // Existing schema currently types Test.children as Requirement children.
       children: children.map((child: any) => copyRequirementTree(child)),
-    });
+    };
   };
 
   const copyTask = (task: any): any => {
-    return Task.create({
+    const fallbackAssignee = me;
+    const assigned = task.assigned_to?.$isLoaded ? task.assigned_to : fallbackAssignee;
+    if (!assigned) {
+      throw new Error("Cannot migrate task assignee without a loaded profile.");
+    }
+
+    return {
       summary: task.summary,
-      assigned_to: task.assigned_to?.$isLoaded ? task.assigned_to : me!,
+      assigned_to: assigned,
       status: task.status,
-      details: co.richText().create(task.details.toString()),
+      details: task.details.toString(),
       custom_fields: task.custom_fields,
       order: task.order,
       type: task.type,
       tags: [...task.tags],
-    });
+    };
   };
 
   const copyTaskBucket = (bucket: any): any => {
     const tasks = bucket?.tasks && bucket.tasks.$isLoaded ? [...bucket.tasks] : [];
-    return TaskBucket.create({
+    return {
       name: bucket.name,
       type: bucket.type,
       order: bucket.order,
       tasks: tasks.map((task: any) => copyTask(task)),
-    });
+    };
   };
 
   const copyTestResult = (result: any): any => {
     if (!result.test || !result.test.$isLoaded) return null;
     const copiedTest = copyTestTree(result.test);
-    return TestResult.create({
+    return {
       test: copiedTest,
       status: result.status,
-      details: co.richText().create(result.details.toString()),
+      details: result.details.toString(),
       performed_on: result.performed_on,
       performed_by: result.performed_by,
-    });
+    };
   };
 
   const copyTestReport = (report: any): any => {
     const results = report?.test_results && report.test_results.$isLoaded ? [...report.test_results] : [];
-    return TestReport.create({
+    return {
       status: report.status,
-      details: co.richText().create(report.details.toString()),
+      details: report.details.toString(),
       performed_on: report.performed_on,
       performed_by: report.performed_by,
       test_results: results.map((result: any) => copyTestResult(result)).filter(Boolean),
-    });
+    };
   };
 
   const migrateProjectOwnersToOrganization = async () => {
     if (!organization.$isLoaded) return;
+    if (!canManageOrganization) {
+      setMigrationNotice({
+        title: "Insufficient permissions",
+        description: "You need manager or admin access on this organization to run ownership migration.",
+      });
+      return;
+    }
+
     if (!me) {
       setMigrationNotice({
         title: "Profile still loading",
@@ -149,8 +189,7 @@ export const OrganizationProjectsPage = () => {
 
     setIsMigratingOwners(true);
     try {
-      const orgOwnerId = organization.$jazz.owner.$jazz.id;
-      const mismatched = organization.projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId);
+      const mismatched = organization.projects.filter((project) => !projectInheritsFromOrganization(project));
 
       for (const projectRef of mismatched) {
         const source = await Project.load(projectRef.$jazz.id, {
@@ -207,24 +246,24 @@ export const OrganizationProjectsPage = () => {
 
         if (!source.$isLoaded) continue;
 
+        const replacementOwner = createProjectOwnerGroup();
+        if (!replacementOwner) continue;
         const replacement = Project.create(
           {
             name: source.name,
-            overview: co.richText().create(source.overview.toString()),
+            overview: source.overview.toString(),
             documents: source.documents.map((document) => copyDocumentTree(document)),
             requirements: source.requirements.map((requirement) => copyRequirementTree(requirement)),
             tests: source.tests.map((test) => copyTestTree(test)),
             test_results: source.test_results.map((report) => copyTestReport(report)),
-            people: source.people.map((person) =>
-              Person.create({
-                name: person.name,
-                fields: person.fields,
-                comment: co.richText().create(person.comment.toString()),
-              })
-            ),
+            people: source.people.map((person) => ({
+              name: person.name,
+              fields: person.fields,
+              comment: person.comment.toString(),
+            })),
             task_buckets: source.task_buckets.map((bucket) => copyTaskBucket(bucket)),
           },
-          { owner: organization.$jazz.owner }
+          { owner: replacementOwner }
         );
 
         const insertAt = organization.projects.findIndex((candidate) => candidate.$jazz.id === source.$jazz.id);
@@ -249,10 +288,16 @@ export const OrganizationProjectsPage = () => {
 
   const requestProjectOwnerMigration = () => {
     if (!organization.$isLoaded) return;
+    if (!canManageOrganization) return;
 
-    const orgOwnerId = organization.$jazz.owner.$jazz.id;
-    const mismatched = organization.projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId);
-    if (mismatched.length === 0) return;
+    const mismatched = organization.projects.filter((project) => !projectInheritsFromOrganization(project));
+    if (mismatched.length === 0) {
+      setMigrationNotice({
+        title: "Already up to date",
+        description: "All projects already use the inherited-owner model.",
+      });
+      return;
+    }
 
     setIsMigrationConfirmOpen(true);
   };
@@ -288,8 +333,10 @@ export const OrganizationProjectsPage = () => {
   if (!orgId) return <div className="text-sm text-red-700">Invalid organization URL.</div>;
   if (!organization.$isLoaded) return <div className="text-sm text-muted-foreground">Loading organization projects...</div>;
 
-  const orgOwnerId = organization.$jazz.owner.$jazz.id;
-  const mismatchedOwnerCount = projects.filter((project) => project.$jazz.owner.$jazz.id !== orgOwnerId).length;
+  const mismatchedOwnerCount = projects.filter((project) => !projectInheritsFromOrganization(project)).length;
+  const ownershipFixLabel = mismatchedOwnerCount > 0
+    ? `Fix Ownership (${mismatchedOwnerCount})`
+    : "Ownership Up To Date";
 
   return (
     <section className="space-y-3">
@@ -297,11 +344,15 @@ export const OrganizationProjectsPage = () => {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Projects</CardTitle>
           <div className="flex items-center gap-2">
-            {mismatchedOwnerCount > 0 && (
-              <Button type="button" variant="outline" onClick={requestProjectOwnerMigration} disabled={isMigratingOwners}>
-                {isMigratingOwners ? "Migrating..." : `Fix Ownership (${mismatchedOwnerCount})`}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={requestProjectOwnerMigration}
+              disabled={isMigratingOwners || !canManageOrganization}
+              title={!canManageOrganization ? "Requires organization manager/admin access" : undefined}
+            >
+              {isMigratingOwners ? "Migrating..." : ownershipFixLabel}
+            </Button>
             <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
               Create Project
             </Button>

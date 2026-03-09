@@ -1,4 +1,4 @@
-import { co, z, setDefaultSchemaPermissions, Group } from "jazz-tools";
+import { co, z, setDefaultSchemaPermissions } from "jazz-tools";
 
 setDefaultSchemaPermissions({
   onInlineCreate: "sameAsContainer",
@@ -90,27 +90,24 @@ export const Organization = co.map({
   task_buckets: co.list(TaskBucket),
 }).withMigration((organization) => {
   if (!organization.$jazz.has("overview")) {
-    organization.$jazz.set("overview", co.richText().create(""));
+    organization.$jazz.set("overview", "");
   }
   if (!organization.$jazz.has("projects")) {
-    organization.$jazz.set("projects", co.list(Project).create([], Group.create()));
+    organization.$jazz.set("projects", []);
   }
   if (!organization.$jazz.has("documents")) {
-    organization.$jazz.set("documents", co.list(Document).create([], Group.create()));
+    organization.$jazz.set("documents", []);
   }
   if (!organization.$jazz.has("people")) {
-    organization.$jazz.set("people", co.list(Person).create([], Group.create()));
+    organization.$jazz.set("people", []);
   }
   if (!organization.$jazz.has("task_buckets")) {
     organization.$jazz.set(
       "task_buckets",
-      co.list(TaskBucket).create(
-        [
-          TaskBucket.create({ name: "Backlog", type: "Backlog", order: 1, tasks: [] }),
-          TaskBucket.create({ name: "Active", type: "Active", order: 2, tasks: [] }),
-        ],
-        Group.create()
-      )
+      [
+        { name: "Backlog", type: "Backlog", order: 1, tasks: [] },
+        { name: "Active", type: "Active", order: 2, tasks: [] },
+      ]
     );
   }
 })
@@ -154,27 +151,27 @@ export const Account = co
     });
 
     if (!root.$jazz.has("projects")) {
-      root.$jazz.set("projects", co.list(Project).create([], Group.create()));
+      root.$jazz.set("projects", []);
     }
 
     if (!root.$jazz.has("people")) {
-      root.$jazz.set("people", co.list(Person).create([], Group.create()));
+      root.$jazz.set("people", []);
     }
 
     if (!root.$jazz.has("pinned_projects")) {
-      root.$jazz.set("pinned_projects", co.list(Project).create([], Group.create()));
+      root.$jazz.set("pinned_projects", []);
     }
 
     if (!root.$jazz.has("pinned_organizations")) {
-      root.$jazz.set("pinned_organizations", co.list(Organization).create([], Group.create()));
+      root.$jazz.set("pinned_organizations", []);
     }
 
     if (!root.$jazz.has("recent_projects")) {
-      root.$jazz.set("recent_projects", co.list(Project).create([], Group.create()));
+      root.$jazz.set("recent_projects", []);
     }
 
     if (!root.$jazz.has("organizations")) {
-      root.$jazz.set("organizations", co.list(Organization).create([], Group.create()));
+      root.$jazz.set("organizations", []);
     }
 
     if (!root.$jazz.has("personal_organization")) {
@@ -209,13 +206,13 @@ export const Account = co
     if (!personalOrg) {
       personalOrg = Organization.create({
         name: "My Org",
-        overview: co.richText().create(""),
+        overview: "",
         projects: [],
         documents: [],
         people: [],
         task_buckets: [
-          TaskBucket.create({ name: "Backlog", type: "Backlog", order: 1, tasks: [] }),
-          TaskBucket.create({ name: "Active", type: "Active", order: 2, tasks: [] }),
+          { name: "Backlog", type: "Backlog", order: 1, tasks: [] },
+          { name: "Active", type: "Active", order: 2, tasks: [] },
         ],
       });
     }

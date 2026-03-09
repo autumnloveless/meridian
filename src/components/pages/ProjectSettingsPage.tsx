@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { Group, co } from "jazz-tools";
 import { createInviteLink, useAccount, useCoState, useIsAuthenticated } from "jazz-tools/react";
 
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
+import { cascadeDeleteProject } from "@/lib/cascadeDelete";
 
 type EditableRole = "reader" | "writer" | "manager" | "admin";
 
@@ -101,12 +102,23 @@ const MemberPermissionRow = ({
 
 export const ProjectSettingsPage = () => {
   const { projectId, orgId } = useParams();
+  const navigate = useNavigate();
 
   const project = useCoState(Project, projectId);
   const organization = useCoState(Organization, orgId);
   const ownerGroup = useCoState(Group, project.$isLoaded ? project.$jazz.owner.$jazz.id : undefined);
 
   const me = useAccount(Account);
+  const accountWithRoot = useAccount(Account, {
+    resolve: {
+      root: {
+        organizations: { $each: true },
+        personal_organization: { projects: true },
+        recent_projects: true,
+        pinned_projects: true,
+      },
+    },
+  });
   const isAuthenticated = useIsAuthenticated();
 
   const [projectName, setProjectName] = useState("");
@@ -114,7 +126,10 @@ export const ProjectSettingsPage = () => {
   const [inviteLink, setInviteLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const [memberActionError, setMemberActionError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [pendingMemberRemoval, setPendingMemberRemoval] = useState<co.loaded<typeof Account> | null>(null);
+  const [isDeleteProjectConfirmOpen, setIsDeleteProjectConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!project.$isLoaded) return;
@@ -195,6 +210,52 @@ export const ProjectSettingsPage = () => {
 
   const memberIds = ownerGroup.$isLoaded ? ownerGroup.members.map((member) => member.id) : [];
 
+  const requestDeleteProject = () => {
+    setDeleteError(null);
+    setIsDeleteProjectConfirmOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectId) return;
+
+    setIsDeletingProject(true);
+    setDeleteError(null);
+
+    try {
+      if (accountWithRoot.$isLoaded) {
+        accountWithRoot.root.recent_projects.$jazz.remove((candidate) => candidate.$jazz.id === projectId);
+        accountWithRoot.root.pinned_projects.$jazz.remove((candidate) => candidate.$jazz.id === projectId);
+
+        if (accountWithRoot.root.personal_organization?.$isLoaded) {
+          if (accountWithRoot.root.personal_organization.projects.$isLoaded) {
+            accountWithRoot.root.personal_organization.projects.$jazz.remove(
+              (candidate) => candidate.$jazz.id === projectId,
+            );
+          }
+        }
+
+        accountWithRoot.root.organizations.forEach((candidateOrg) => {
+          if (candidateOrg.projects.$isLoaded) {
+            candidateOrg.projects.$jazz.remove((candidateProject) => candidateProject.$jazz.id === projectId);
+          }
+        });
+      }
+
+      await cascadeDeleteProject(projectId);
+      setIsDeleteProjectConfirmOpen(false);
+
+      if (orgId) {
+        navigate(`/organizations/${orgId}/projects`, { replace: true });
+      } else {
+        navigate("/organizations", { replace: true });
+      }
+    } catch {
+      setDeleteError("Could not delete this project. Make sure you have admin permissions on all nested data.");
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Project Settings</h2>
@@ -216,6 +277,21 @@ export const ProjectSettingsPage = () => {
               Save
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription>
+            Delete this project and all nested data including docs, requirements, tests, tasks, and people.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {deleteError ? <p className="text-xs text-destructive">{deleteError}</p> : null}
+          <Button type="button" variant="destructive" onClick={requestDeleteProject}>
+            Delete Project
+          </Button>
         </CardContent>
       </Card>
 
@@ -331,6 +407,22 @@ export const ProjectSettingsPage = () => {
         confirmText="Remove"
         confirmVariant="destructive"
         onConfirm={confirmMemberRemoval}
+      />
+
+      <ConfirmDialog
+        open={isDeleteProjectConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeleteError(null);
+          setIsDeleteProjectConfirmOpen(open);
+        }}
+        title="Delete project"
+        description={`Delete \"${project.name}\" and all nested data? This action cannot be undone.`}
+        confirmText={isDeletingProject ? "Deleting..." : "Delete project"}
+        confirmVariant="destructive"
+        isConfirmDisabled={isDeletingProject}
+        onConfirm={() => {
+          void confirmDeleteProject();
+        }}
       />
     </section>
   );

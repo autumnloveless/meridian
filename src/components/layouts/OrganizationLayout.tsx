@@ -1,26 +1,27 @@
 import { useMemo } from "react";
 import { NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
+import { Archive, CircleCheck, FileText, FolderKanban, House, LayoutList, Settings, User } from "lucide-react";
 
 import { Organization } from "@/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DocsNavSection } from "@/components/docs/DocsNavSection";
 import { cn } from "@/lib/utils";
 import { getOrganizationBasePath } from "@/lib/projectPaths";
 
 const organizationNavItems = [
-  { to: "overview", label: "Overview" },
-  { to: "projects", label: "Projects" },
-  { to: "tasks", label: "Tasks" },
-  { to: "people", label: "People" },
-  { to: "docs", label: "Docs" },
+  { to: "overview", label: "Overview", icon: House },
+  { to: "projects", label: "Projects", icon: FolderKanban },
+  { to: "tasks", label: "Tasks", icon: CircleCheck },
+  { to: "people", label: "People", icon: User },
+  { to: "docs", label: "Docs", icon: FileText },
 ] as const;
 
 const taskSubNavItems = [
-  { to: "tasks/list", label: "List" },
-  { to: "tasks/board", label: "Board" },
-  { to: "tasks/archive", label: "Archive" },
+  { to: "tasks/list", label: "List", icon: LayoutList },
+  { to: "tasks/board", label: "Board", icon: CircleCheck },
+  { to: "tasks/archive", label: "Archive", icon: Archive },
 ] as const;
 
 export const OrganizationLayout = () => {
@@ -61,85 +62,98 @@ export const OrganizationLayout = () => {
         : "Loading organization...";
 
   return (
-    <section className="grid min-h-[calc(100vh-4.5rem)] grid-cols-1 gap-4 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
-      <Card className="h-full">
+    <section className="grid h-full min-h-0 w-full grid-cols-1 gap-4 bg-muted/20 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
+      <Card size="sm" className="h-full min-h-0 rounded-xl border-border/70 !gap-0">
         <CardHeader className="border-b">
-          <CardTitle className="truncate text-lg">{organizationTitle}</CardTitle>
+          <h2 className="whitespace-normal break-all text-base font-semibold leading-tight">{organizationTitle}</h2>
         </CardHeader>
 
-        <CardContent className="flex h-full flex-col gap-2">
-          <nav aria-label="Organization navigation" className="flex flex-col gap-1">
-            {organizationNavItems.map((item) => (
-              <div key={item.to} className="flex flex-col gap-1">
-                {item.to === "docs" && organization.$isLoaded ? (
-                  <DocsNavSection
-                    to="docs"
-                    label="Docs"
-                    isActive={isInDocsSection}
-                    basePath={organizationBasePath}
-                    documents={organization.documents}
-                    activeDocId={activeDocId}
-                  />
-                ) : (
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      cn(
-                        buttonVariants({ variant: "ghost" }),
-                        "w-full justify-start",
-                        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                      )
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                )}
+        <CardContent className="flex h-full min-h-0 flex-col gap-2 px-3 py-3">
+            <nav aria-label="Organization navigation" className="flex flex-col gap-1">
+              {organizationNavItems.map((item) => {
+                const Icon = item.icon;
 
-                {item.to === "tasks" && isInTasksSection && (
-                  <div className="ml-4 flex flex-col gap-1 border-l pl-2">
-                    {taskSubNavItems.map((subItem) => (
+                return (
+                  <div key={item.to} className="flex flex-col gap-1">
+                    {item.to === "docs" && organization.$isLoaded ? (
+                      <DocsNavSection
+                        to="docs"
+                        label="Docs"
+                        isActive={isInDocsSection}
+                        basePath={organizationBasePath}
+                        documents={organization.documents}
+                        activeDocId={activeDocId}
+                      />
+                    ) : (
                       <NavLink
-                        key={subItem.to}
-                        to={subItem.to}
+                        to={item.to}
                         className={({ isActive }) =>
                           cn(
                             buttonVariants({ variant: "ghost" }),
-                            "h-8 w-full justify-start px-2 text-xs",
+                            "w-full justify-start gap-2 px-3",
                             isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
                           )
                         }
                       >
-                        {subItem.label}
+                        <Icon className="size-4" />
+                        {item.label}
                       </NavLink>
-                    ))}
+                    )}
+
+                    {item.to === "tasks" && isInTasksSection && (
+                      <div className="ml-4 flex flex-col gap-1 border-l pl-2">
+                        {taskSubNavItems.map((subItem) => {
+                          const SubIcon = subItem.icon;
+
+                          return (
+                            <NavLink
+                              key={subItem.to}
+                              to={subItem.to}
+                              className={({ isActive }) =>
+                                cn(
+                                  buttonVariants({ variant: "ghost" }),
+                                  "h-8 w-full justify-start gap-2 px-2 text-xs",
+                                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                                )
+                              }
+                            >
+                              <SubIcon className="size-3.5" />
+                              {subItem.label}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </nav>
+                );
+              })}
+            </nav>
 
-          <div className="mt-auto border-t pt-2">
-            <NavLink
-              to="settings"
-              className={({ isActive }) =>
-                cn(
-                  buttonVariants({ variant: "ghost" }),
-                  "w-full justify-start",
-                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                )
-              }
-            >
-              Settings
-            </NavLink>
-          </div>
-        </CardContent>
+            <div className="mt-auto border-t pt-2">
+              <NavLink
+                to="settings"
+                className={({ isActive }) =>
+                  cn(
+                    buttonVariants({ variant: "ghost" }),
+                    "w-full justify-start gap-2 rounded-md px-3",
+                    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                  )
+                }
+              >
+                <Settings className="size-4" />
+                Settings
+              </NavLink>
+            </div>
+          </CardContent>
       </Card>
 
-      <Card className="h-full min-h-0" size="sm">
-        <CardContent className="h-full min-h-0">
-          <Outlet />
-        </CardContent>
-      </Card>
+      <div className="h-full min-h-0 p-0">
+        <Card className="h-full min-h-0" size="sm">
+          <CardContent className="h-full min-h-0">
+            <Outlet />
+          </CardContent>
+        </Card>
+      </div>
     </section>
   );
 };

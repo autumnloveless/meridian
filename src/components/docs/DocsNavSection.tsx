@@ -33,9 +33,9 @@ export const DocsNavSection = ({
   const createPage = async () => {
     const newDocument = Document.create({
       name: "Untitled",
-      content: co.richText().create(""),
+      content: "",
       children: [],
-    });
+    }, { owner: documents.$jazz.owner });
 
     if (activeDocId) {
       const parentRef = documents.find((doc) => doc.$jazz.id === activeDocId);
@@ -164,11 +164,14 @@ export const DocsNavSection = ({
             className={({ isActive: isLinkActive }) =>
               cn(
                 buttonVariants({ variant: "ghost" }),
-                "w-full justify-start pr-9",
-                isLinkActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                "w-full justify-start gap-2 rounded-md px-3 pr-9",
+                isLinkActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground"
               )
             }
           >
+            <FileText className="size-4" />
             {label}
           </NavLink>
 

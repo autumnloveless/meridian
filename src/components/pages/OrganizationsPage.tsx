@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useAccount } from "jazz-tools/react";
-import { co } from "jazz-tools";
+import { Group } from "jazz-tools";
 
-import { Account, Organization, Document } from "@/schema";
+import { Account, Organization } from "@/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateOrganizationDialog } from "@/components/dialogs/CreateOrganizationDialog";
@@ -40,17 +40,18 @@ export const OrganizationsPage = () => {
   }
 
   const createOrganization = (name: string) => {
+    const organizationOwner = Group.create();
     const organization = Organization.create({
       name,
-      overview: co.richText().create(""),
+      overview: "",
       projects: [],
       documents: [
-        Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
-        Document.create({ name: "Project Ideas", content: co.richText().create(""), children: [] }),
+        { name: "Meeting Notes", content: "", children: [] },
+        { name: "Project Ideas", content: "", children: [] },
       ],
       people: [],
       task_buckets: [],
-    });
+    }, { owner: organizationOwner });
 
     account.root.organizations.$jazz.push(organization);
   };

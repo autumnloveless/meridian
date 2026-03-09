@@ -227,12 +227,12 @@ export const ProjectTasksBoardPage = () => {
     if (hasActive) return;
 
     project.task_buckets.$jazz.push(
-      TaskBucket.create({
+      {
         name: "Active",
         type: "Active",
         order: 0,
         tasks: [],
-      })
+      }
     );
   }, [project]);
 
@@ -305,16 +305,16 @@ export const ProjectTasksBoardPage = () => {
     if (!summary) return;
 
     activeBucket.tasks.$jazz.push(
-      Task.create({
+      {
         summary,
         type: draftTask.taskType,
         assigned_to: profile,
         status: "Backlog",
-        details: co.richText().create(""),
+        details: "",
         custom_fields: {},
         order: activeBucket.tasks.length + 1,
         tags: [],
-      })
+      }
     );
 
     setDraftTask((current) => ({ ...current, summary: "" }));

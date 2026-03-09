@@ -78,23 +78,23 @@ export const ensureDefaultBuckets = (target: LoadedOrganization | LoadedProject)
 
   if (!hasActive) {
     target.task_buckets.$jazz.push(
-      TaskBucket.create({
+      {
         name: "Active",
         type: "Active",
         order: 0,
         tasks: [],
-      })
+      }
     );
   }
 
   if (!hasBacklog) {
     target.task_buckets.$jazz.push(
-      TaskBucket.create({
+      {
         name: "Backlog",
         type: "Backlog",
         order: 9999,
         tasks: [],
-      })
+      }
     );
   }
 };
@@ -210,16 +210,16 @@ export const createTaskInTarget = ({
   if (!backlogBucket) return;
 
   backlogBucket.tasks.$jazz.push(
-    Task.create({
+    {
       summary: normalized,
       type: taskType,
       assigned_to: profile,
       status: "Backlog",
-      details: co.richText().create(""),
+      details: "",
       custom_fields: {},
       order: backlogBucket.tasks.length + 1,
       tags: [],
-    })
+    }
   );
 };
 

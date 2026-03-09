@@ -220,23 +220,23 @@ export const ProjectTasksListPage = () => {
 
     if (!hasActive) {
       project.task_buckets.$jazz.push(
-        TaskBucket.create({
+        {
           name: "Active",
           type: "Active",
           order: 0,
           tasks: [],
-        })
+        }
       );
     }
 
     if (!hasBacklog) {
       project.task_buckets.$jazz.push(
-        TaskBucket.create({
+        {
           name: "Backlog",
           type: "Backlog",
           order: 9999,
           tasks: [],
-        })
+        }
       );
     }
   }, [project]);
@@ -383,16 +383,16 @@ export const ProjectTasksListPage = () => {
     if (!summary) return;
 
     bucket.tasks.$jazz.push(
-      Task.create({
+      {
         summary,
         type: draftTask.taskType,
         assigned_to: profile,
         status: bucketTypeToTaskStatus(bucket.type),
-        details: co.richText().create(""),
+        details: "",
         custom_fields: {},
         order: bucket.tasks.length + 1,
         tags: [],
-      })
+      }
     );
 
     setDraftTask(bucketId, { ...draftTask, summary: "" });
