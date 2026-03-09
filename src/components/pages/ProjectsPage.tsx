@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Pin } from "lucide-react";
+import { MoreHorizontal, Pin } from "lucide-react";
 import { useAccount } from "jazz-tools/react";
 import { co } from "jazz-tools";
 
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CreateOrganizationDialog } from "../dialogs/CreateOrganizationDialog";
 import { CreateProjectDialog } from "../dialogs/CreateProjectDialog";
 import { Account, Document, Organization, Project } from "@/schema";
@@ -19,6 +21,8 @@ export const ProjectsPage = () => {
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dropTargetOrgId, setDropTargetOrgId] = useState<string | null>(null);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
 
   const data = useAccount(Account, {
@@ -168,6 +172,39 @@ export const ProjectsPage = () => {
     } else {
       data.pinned_projects?.$jazz.remove((p) => p.$jazz.id === projectId);
     }
+  };
+
+  const startProjectRename = (projectId: string) => {
+    const projectEntry = allProjectsById[projectId];
+    if (!projectEntry) return;
+
+    setEditingProjectId(projectId);
+    setEditingProjectName(projectEntry.project.name);
+  };
+
+  const cancelProjectRename = () => {
+    setEditingProjectId(null);
+    setEditingProjectName("");
+  };
+
+  const saveProjectRename = (projectId: string) => {
+    const projectEntry = allProjectsById[projectId];
+    if (!projectEntry) {
+      cancelProjectRename();
+      return;
+    }
+
+    const nextName = editingProjectName.trim();
+    if (!nextName) {
+      cancelProjectRename();
+      return;
+    }
+
+    if (nextName !== projectEntry.project.name) {
+      projectEntry.project.$jazz.set("name", nextName);
+    }
+
+    cancelProjectRename();
   };
 
   const createOrganization = (name: string) => {
@@ -378,12 +415,13 @@ export const ProjectsPage = () => {
             <ul className="divide-y">
               {visibleProjects.map(({ project, organizationName }) => {
                 const isPinned = pinnedProjectIds.has(project.$jazz.id);
+                const isEditingName = editingProjectId === project.$jazz.id;
 
                 return (
                   <li
                     key={project.$jazz.id}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
-                    draggable
+                    draggable={!isEditingName}
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = "move";
                       event.dataTransfer.setData("text/plain", project.$jazz.id);
@@ -395,12 +433,33 @@ export const ProjectsPage = () => {
                     }}
                   >
                     <div className="min-w-0 flex-1">
-                      <Link
-                        to={`/projects/${project.$jazz.id}/overview`}
-                        className="block truncate text-sm font-semibold text-stone-900 hover:underline"
-                      >
-                        {project.name}
-                      </Link>
+                      {isEditingName ? (
+                        <Input
+                          value={editingProjectName}
+                          autoFocus
+                          className="h-8"
+                          onChange={(event) => setEditingProjectName(event.target.value)}
+                          onBlur={() => saveProjectRename(project.$jazz.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              saveProjectRename(project.$jazz.id);
+                            }
+
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              cancelProjectRename();
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Link
+                          to={`/projects/${project.$jazz.id}/overview`}
+                          className="block truncate text-sm font-semibold text-stone-900 hover:underline"
+                        >
+                          {project.name}
+                        </Link>
+                      )}
                       <p className="mt-1 text-xs text-muted-foreground">
                         {organizationName ? `Organization: ${organizationName}` : "Standalone project"}
                       </p>
@@ -416,6 +475,24 @@ export const ProjectsPage = () => {
                     >
                       <Pin className="h-4 w-4" fill={isPinned ? "currentColor" : "none"} />
                     </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" size="icon" variant="outline" aria-label={`Actions for ${project.name}`}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            startProjectRename(project.$jazz.id);
+                          }}
+                        >
+                          Rename project
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </li>
                 );
               })}
