@@ -17,6 +17,8 @@ type ProjectScope = "all" | "standalone" | string;
 export const ProjectsPage = () => {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
+  const [dropTargetOrgId, setDropTargetOrgId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const data = useAccount(Account, {
@@ -116,6 +118,47 @@ export const ProjectsPage = () => {
   const hasAnyContent = allProjects.length > 0;
   const isPageLoading = !data.account;
 
+  const moveProjectToOrganization = (projectId: string, targetOrganizationId: string) => {
+    if (!data.account) {
+      return;
+    }
+
+    const projectEntry = allProjectsById[projectId];
+    if (!projectEntry || projectEntry.organizationId === targetOrganizationId) {
+      return;
+    }
+
+    const sourceOrganization =
+      projectEntry.organizationId === null
+        ? null
+        : sortedOrganizations.find((organization) => organization.$jazz.id === projectEntry.organizationId);
+    const targetOrganization = sortedOrganizations.find((organization) => organization.$jazz.id === targetOrganizationId);
+
+    if (!targetOrganization) {
+      return;
+    }
+
+    if (sourceOrganization) {
+      sourceOrganization.projects.$jazz.remove((project) => project.$jazz.id === projectId);
+    } else {
+      data.account.root.projects.$jazz.remove((project) => project.$jazz.id === projectId);
+    }
+
+    const isAlreadyInTarget = targetOrganization.projects.some((project) => project.$jazz.id === projectId);
+    if (!isAlreadyInTarget) {
+      targetOrganization.projects.$jazz.push(projectEntry.project);
+    }
+  };
+
+  const canDropProjectIntoOrganization = (projectId: string, organizationId: string) => {
+    const projectEntry = allProjectsById[projectId];
+    if (!projectEntry) {
+      return false;
+    }
+
+    return projectEntry.organizationId !== organizationId;
+  };
+
   const togglePin = (projectId: string) => {
     const projectEntry = allProjectsById[projectId];
     if (!projectEntry) return;
@@ -142,24 +185,31 @@ export const ProjectsPage = () => {
       return;
     }
 
-    const { root } = data.account;
+    const project = Project.create({
+      name,
+      overview: co.richText().create(""),
+      documents: [
+        Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
+        Document.create({ name: "Design Docs", content: co.richText().create(""), children: [] }),
+        Document.create({ name: "Technical Docs", content: co.richText().create(""), children: [] }),
+      ],
+      requirements: [],
+      tests: [],
+      test_results: [],
+      people: [],
+      task_buckets: [],
+    });
 
-    root.projects.$jazz.push(
-      Project.create({
-        name,
-        overview: co.richText().create(""),
-        documents: [
-          Document.create({ name: "Meeting Notes", content: co.richText().create(""), children: [] }),
-          Document.create({ name: "Design Docs", content: co.richText().create(""), children: [] }),
-          Document.create({ name: "Technical Docs", content: co.richText().create(""), children: [] }),
-        ],
-        requirements: [],
-        tests: [],
-        test_results: [],
-        people: [],
-        task_buckets: [],
-      }),
-    );
+    if (selectedScope !== "all" && selectedScope !== "standalone") {
+      const targetOrganization = sortedOrganizations.find((organization) => organization.$jazz.id === selectedScope);
+
+      if (targetOrganization) {
+        targetOrganization.projects.$jazz.push(project);
+        return;
+      }
+    }
+
+    data.account.root.projects.$jazz.push(project);
   };
 
   const scopeLabel =
@@ -222,6 +272,7 @@ export const ProjectsPage = () => {
                   <nav aria-label="Organizations" className="flex flex-col gap-1">
                     {sortedOrganizations.map((organization) => {
                       const isActive = selectedScope === organization.$jazz.id;
+                      const isDropTarget = dropTargetOrgId === organization.$jazz.id;
 
                       return (
                         <button
@@ -231,8 +282,36 @@ export const ProjectsPage = () => {
                             buttonVariants({ variant: "ghost" }),
                             "w-full min-w-0 justify-start truncate",
                             isActive ? "bg-muted text-foreground" : "text-muted-foreground",
+                            isDropTarget ? "ring-2 ring-primary ring-offset-1" : null,
                           )}
                           onClick={() => setScope(organization.$jazz.id)}
+                          onDragOver={(event) => {
+                            if (!draggingProjectId) {
+                              return;
+                            }
+
+                            if (!canDropProjectIntoOrganization(draggingProjectId, organization.$jazz.id)) {
+                              return;
+                            }
+
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                            setDropTargetOrgId(organization.$jazz.id);
+                          }}
+                          onDragLeave={() => {
+                            setDropTargetOrgId((prev) => (prev === organization.$jazz.id ? null : prev));
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const projectId = draggingProjectId ?? event.dataTransfer.getData("text/plain");
+                            if (!projectId) {
+                              return;
+                            }
+
+                            moveProjectToOrganization(projectId, organization.$jazz.id);
+                            setDraggingProjectId(null);
+                            setDropTargetOrgId(null);
+                          }}
                         >
                           {organization.name}
                         </button>
@@ -301,7 +380,20 @@ export const ProjectsPage = () => {
                 const isPinned = pinnedProjectIds.has(project.$jazz.id);
 
                 return (
-                  <li key={project.$jazz.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40">
+                  <li
+                    key={project.$jazz.id}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", project.$jazz.id);
+                      setDraggingProjectId(project.$jazz.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingProjectId(null);
+                      setDropTargetOrgId(null);
+                    }}
+                  >
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/projects/${project.$jazz.id}/overview`}
