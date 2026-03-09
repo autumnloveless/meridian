@@ -21,10 +21,12 @@ import { ChevronDown, GripVertical, MoreHorizontal, Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 import { Account, Project, Task, TaskBucket } from "@/schema";
 
 type BucketType = "Active" | "Backlog" | "Custom";
-type TaskType = Task["type"];
+type LoadedTask = co.loaded<typeof Task>;
+type TaskType = "Task" | "Bug";
 
 type DraftTask = {
   summary: string;
@@ -58,7 +60,18 @@ const parseTaskDndId = (value: string) =>
 const parseBucketDndId = (value: string) =>
   value.startsWith(BUCKET_PREFIX) ? value.slice(BUCKET_PREFIX.length) : null;
 
-function TaskRow({ task, bucketId }: { task: Task; bucketId: string }) {
+const isLoadedTask = (task: unknown): task is LoadedTask =>
+  Boolean(task && typeof task === "object" && "$isLoaded" in task && (task as { $isLoaded?: boolean }).$isLoaded);
+
+function TaskRow({
+  task,
+  bucketId,
+  onSelect,
+}: {
+  task: LoadedTask;
+  bucketId: string;
+  onSelect: (task: LoadedTask) => void;
+}) {
   const sortable = useSortable({
     id: taskDndId(task.$jazz.id),
     data: { taskId: task.$jazz.id, bucketId },
@@ -75,6 +88,7 @@ function TaskRow({ task, bucketId }: { task: Task; bucketId: string }) {
       ref={sortable.setNodeRef}
       style={style}
       className="border-b border-stone-200 bg-white hover:bg-stone-50"
+      onClick={() => onSelect(task)}
     >
       <td className="w-9 px-1.5 py-1 align-middle">
         <button
@@ -103,7 +117,9 @@ function TaskRow({ task, bucketId }: { task: Task; bucketId: string }) {
       </td>
       <td className="w-12 px-1.5 py-1 text-right text-stone-500">
         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
-          {(task.assigned_to?.name?.[0] ?? "?").toUpperCase()}
+          {(task.assigned_to && task.assigned_to.$isLoaded
+            ? task.assigned_to.name[0]
+            : "?")?.toUpperCase()}
         </span>
       </td>
     </tr>
@@ -129,7 +145,7 @@ function BucketBody({
   );
 }
 
-function DragTaskPreview({ task }: { task: Task }) {
+function DragTaskPreview({ task }: { task: LoadedTask }) {
   return (
     <div className="w-[760px] max-w-[94vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
       <div className="grid grid-cols-[20px_96px_minmax(0,1fr)_88px_96px_40px] items-center gap-1.5">
@@ -139,7 +155,9 @@ function DragTaskPreview({ task }: { task: Task }) {
         <span className="text-[10px] font-semibold uppercase text-stone-600">{task.tags[0] ?? "-"}</span>
         <span className="text-[10px] font-semibold uppercase text-stone-600">{task.status}</span>
         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
-          {(task.assigned_to?.name?.[0] ?? "?").toUpperCase()}
+          {(task.assigned_to && task.assigned_to.$isLoaded
+            ? task.assigned_to.name[0]
+            : "?")?.toUpperCase()}
         </span>
       </div>
     </div>
@@ -166,6 +184,7 @@ export const ProjectTasksListPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [ticketTypeFilter, setTicketTypeFilter] = useState<"All" | TaskType>("All");
   const [collapsedBucketIds, setCollapsedBucketIds] = useState<Set<string>>(new Set());
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -182,7 +201,12 @@ export const ProjectTasksListPage = () => {
     resolve: {
       task_buckets: {
         $each: {
-          tasks: { $each: true },
+          tasks: {
+            $each: {
+              assigned_to: true,
+              details: true,
+            },
+          },
         },
       },
     },
@@ -234,10 +258,10 @@ export const ProjectTasksListPage = () => {
     [orderedBuckets]
   );
 
-  const bucketTypeToTaskStatus = (bucketType: BucketType): Task["status"] =>
+  const bucketTypeToTaskStatus = (bucketType: BucketType): LoadedTask["status"] =>
     bucketType === "Active" ? "In Progress" : "Backlog";
 
-  const getTaskKey = (task: Task) => `NUC-${Math.max(task.order, 1)}`;
+  const getTaskKey = (task: LoadedTask) => `NUC-${Math.max(task.order, 1)}`;
 
   const isBucketCollapsed = (bucketId: string) => collapsedBucketIds.has(bucketId);
 
@@ -260,8 +284,10 @@ export const ProjectTasksListPage = () => {
     setDraftTasksByBucketId((current) => ({ ...current, [bucketId]: nextDraft }));
   };
 
-  const normalizeTaskOrder = (bucket: TaskBucket) => {
-    bucket.tasks.forEach((task, index) => {
+  const normalizeTaskOrder = (bucket: co.loaded<typeof TaskBucket>) => {
+    const tasks = bucket.tasks as unknown as LoadedTask[];
+
+    tasks.forEach((task, index) => {
       const nextOrder = index + 1;
       if (task.order !== nextOrder) {
         task.$jazz.set("order", nextOrder);
@@ -379,18 +405,20 @@ export const ProjectTasksListPage = () => {
     const overTaskId = parseTaskDndId(overId);
     const overBucketId = parseBucketDndId(overId);
 
-    let targetBucket: TaskBucket | undefined;
+    let targetBucket: co.loaded<typeof TaskBucket> | undefined;
     let targetIndex = -1;
 
     if (overTaskId) {
       targetBucket = findBucketByTaskId(overTaskId);
       if (targetBucket) {
-        targetIndex = targetBucket.tasks.findIndex((task) => task.$jazz.id === overTaskId);
+        const tasks = targetBucket.tasks as unknown as LoadedTask[];
+        targetIndex = tasks.findIndex((task) => task.$jazz.id === overTaskId);
       }
     } else if (overBucketId) {
       targetBucket = project.task_buckets.find((bucket) => bucket.$jazz.id === overBucketId);
       if (targetBucket) {
-        targetIndex = targetBucket.tasks.length;
+        const tasks = targetBucket.tasks as unknown as LoadedTask[];
+        targetIndex = tasks.length;
       }
     }
 
@@ -497,8 +525,9 @@ export const ProjectTasksListPage = () => {
       return;
     }
 
-    const insertAt = Math.min(Math.max(targetIndex, 0), targetBucket.tasks.length);
-    targetBucket.tasks.$jazz.splice(insertAt, 0, movedTask);
+    const targetTasks = targetBucket.tasks as unknown as LoadedTask[];
+    const insertAt = Math.min(Math.max(targetIndex, 0), targetTasks.length);
+    (targetBucket.tasks.$jazz as { splice: (start: number, deleteCount: number, ...items: LoadedTask[]) => void }).splice(insertAt, 0, movedTask);
     movedTask.$jazz.set("status", bucketTypeToTaskStatus(targetBucket.type));
 
     normalizeTaskOrder(sourceBucket);
@@ -633,7 +662,13 @@ export const ProjectTasksListPage = () => {
   const draggedTask = activeDrag
     ? project.task_buckets
         .flatMap((bucket) => bucket.tasks)
-        .find((task) => task.$jazz.id === activeDrag.taskId)
+        .find((task): task is LoadedTask => task.$jazz.id === activeDrag.taskId && isLoadedTask(task)) ?? null
+    : null;
+
+  const selectedTask = selectedTaskId
+    ? project.task_buckets
+        .flatMap((bucket) => bucket.tasks)
+        .find((task): task is LoadedTask => task.$jazz.id === selectedTaskId && isLoadedTask(task)) ?? null
     : null;
 
   return (
@@ -683,7 +718,10 @@ export const ProjectTasksListPage = () => {
 
               const keyText = getTaskKey(task).toLowerCase();
               const summaryText = task.summary.toLowerCase();
-              const assigneeText = (task.assigned_to?.name ?? "").toLowerCase();
+              const assigneeText =
+                task.assigned_to && task.assigned_to.$isLoaded
+                  ? task.assigned_to.name.toLowerCase()
+                  : "";
 
               return (
                 summaryText.includes(normalizedQuery) ||
@@ -734,7 +772,11 @@ export const ProjectTasksListPage = () => {
                                 {filteredTasks.map((task, index) => (
                                   <Fragment key={task.$jazz.id}>
                                     {indicatorIndex === index ? <InsertionIndicatorRow /> : null}
-                                    <TaskRow task={task} bucketId={bucket.$jazz.id} />
+                                    <TaskRow
+                                      task={task}
+                                      bucketId={bucket.$jazz.id}
+                                      onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)}
+                                    />
                                   </Fragment>
                                 ))}
                                 {indicatorIndex === filteredTasks.length ? <InsertionIndicatorRow /> : null}
@@ -799,6 +841,12 @@ export const ProjectTasksListPage = () => {
           {draggedTask ? <DragTaskPreview task={draggedTask} /> : null}
         </DragOverlay>
       </DndContext>
+
+      <TaskDetailsPane
+        open={Boolean(selectedTask)}
+        task={selectedTask}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </section>
   );
 };

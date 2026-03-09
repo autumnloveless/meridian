@@ -94,7 +94,7 @@ export const ProjectLayout = () => {
                 cn(
                   buttonVariants({ variant: "ghost" }),
                   "w-full justify-start",
-                  isActive ? activeNavItemClass : "text-muted-foreground"
+                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
                 )
               }
             >

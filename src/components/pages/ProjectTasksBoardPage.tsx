@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 
 const TASK_PREFIX = "task:";
 const COLUMN_PREFIX = "column:";
@@ -92,7 +93,7 @@ const boardStatuses = boardColumns.map((column) => column.status);
 const isBoardStatus = (status: LoadedTask["status"]): status is BoardStatus =>
   boardStatuses.includes(status as BoardStatus);
 
-function TaskCard({ task }: { task: LoadedTask }) {
+function TaskCard({ task, onSelect }: { task: LoadedTask; onSelect: (task: LoadedTask) => void }) {
   const sortable = useSortable({ id: taskDndId(task.$jazz.id) });
   const assigneeInitial =
     task.assigned_to && task.assigned_to.$isLoaded
@@ -110,6 +111,7 @@ function TaskCard({ task }: { task: LoadedTask }) {
       ref={sortable.setNodeRef}
       style={style}
       className="cursor-grab border border-stone-200 bg-white py-2 shadow-sm active:cursor-grabbing"
+      onClick={() => onSelect(task)}
       {...sortable.attributes}
       {...sortable.listeners}
     >
@@ -190,6 +192,7 @@ export const ProjectTasksBoardPage = () => {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [draftTask, setDraftTask] = useState<DraftTask>(defaultDraftTask);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -206,7 +209,12 @@ export const ProjectTasksBoardPage = () => {
     resolve: {
       task_buckets: {
         $each: {
-          tasks: { $each: true },
+          tasks: {
+            $each: {
+              assigned_to: true,
+              details: true,
+            },
+          },
         },
       },
     },
@@ -384,10 +392,10 @@ export const ProjectTasksBoardPage = () => {
       // Ensure array identity changes only when order changed.
       const sameOrder = nextTasks.every((task, index) => task.$jazz.id === activeBucket.tasks[index]?.$jazz.id);
       if (!sameOrder) {
-        activeBucket.tasks.$jazz.applyDiff(nextTasks);
+        activeBucket.tasks.$jazz.applyDiff(nextTasks as any);
       }
     } else {
-      activeBucket.tasks.$jazz.applyDiff(nextTasks);
+      activeBucket.tasks.$jazz.applyDiff(nextTasks as any);
     }
 
     normalizeTaskOrder(activeBucket);
@@ -411,6 +419,8 @@ export const ProjectTasksBoardPage = () => {
   }
 
   const draggedTask = activeDrag ? findTaskById(activeDrag.taskId) : null;
+  const selectedTask = selectedTaskId ? findTaskById(selectedTaskId) ?? null : null;
+  const loadedSelectedTask = selectedTask && selectedTask.$isLoaded ? selectedTask : null;
 
   return (
     <section className="space-y-3">
@@ -499,7 +509,7 @@ export const ProjectTasksBoardPage = () => {
                       ) : (
                         tasks.map((task) => (
                           <Fragment key={task.$jazz.id}>
-                            <TaskCard task={task} />
+                            <TaskCard task={task} onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)} />
                           </Fragment>
                         ))
                       )}
@@ -513,6 +523,12 @@ export const ProjectTasksBoardPage = () => {
 
         <DragOverlay>{draggedTask ? <DragTaskPreview task={draggedTask} /> : null}</DragOverlay>
       </DndContext>
+
+      <TaskDetailsPane
+        open={Boolean(loadedSelectedTask)}
+        task={loadedSelectedTask}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </section>
   );
 };
