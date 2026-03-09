@@ -4,16 +4,33 @@ import { useCoState } from "jazz-tools/react";
 
 import { Project } from "@/schema";
 
-const flattenDocuments = (documents: any[]): any[] => {
+const toDocumentArray = (value: unknown): any[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === "function") {
+    return Array.from(value as Iterable<any>);
+  }
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).filter(
+      (item) => !!item && typeof item === "object" && "$jazz" in (item as Record<string, unknown>)
+    ) as any[];
+  }
+  return [];
+};
+
+const flattenDocuments = (documents: readonly any[]): any[] => {
   const flat: any[] = [];
 
   const visit = (doc: any) => {
     flat.push(doc);
-    if (!doc.children) return;
-    doc.children.forEach((child: any) => visit(child));
+    for (const child of toDocumentArray(doc.children)) {
+      visit(child);
+    }
   };
 
-  documents.forEach((doc) => visit(doc));
+  for (const doc of toDocumentArray(documents)) {
+    visit(doc);
+  }
   return flat;
 };
 
