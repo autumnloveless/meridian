@@ -70,6 +70,8 @@ export const OrganizationProjectsPage = () => {
         name,
         project_key: defaultProjectKeyFromName(name, "PRJ"),
         next_task_number: 1,
+        next_requirement_number: 1,
+        next_test_number: 1,
         overview: "",
         documents: [
           { name: "Meeting Notes", content: "", children: [] },
@@ -102,6 +104,7 @@ export const OrganizationProjectsPage = () => {
     const children = requirement?.children && requirement.children.$isLoaded ? [...requirement.children] : [];
     return {
       name: requirement.name,
+      sequence_number: requirement.sequence_number,
       details: requirement.details.toString(),
       version: requirement.version,
       status: requirement.status,
@@ -113,11 +116,11 @@ export const OrganizationProjectsPage = () => {
     const children = test?.children && test.children.$isLoaded ? [...test.children] : [];
     return {
       name: test.name,
+      sequence_number: test.sequence_number,
       details: test.details.toString(),
       version: test.version,
       is_folder: test.is_folder,
-      // Existing schema currently types Test.children as Requirement children.
-      children: children.map((child: any) => copyRequirementTree(child)),
+      children: children.map((child: any) => copyTestTree(child)),
     };
   };
 
@@ -261,6 +264,8 @@ export const OrganizationProjectsPage = () => {
             name: source.name,
             project_key: source.project_key,
             next_task_number: source.next_task_number,
+            next_requirement_number: source.next_requirement_number,
+            next_test_number: source.next_test_number,
             overview: source.overview.toString(),
             documents: source.documents.map((document) => copyDocumentTree(document)),
             requirements: source.requirements.map((requirement) => copyRequirementTree(requirement)),

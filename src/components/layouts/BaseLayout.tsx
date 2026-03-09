@@ -7,7 +7,7 @@ export const BaseLayout = () => {
   return (
     <div className="flex min-h-dvh min-h-screen flex-col">
       <Header />
-      <div className="border-b bg-background px-3 py-2 sm:px-6 lg:px-8">
+      <div className="sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-40 border-b bg-background/90 px-3 py-2 backdrop-blur-md sm:top-[calc(env(safe-area-inset-top)+4rem)] sm:px-6 lg:px-8">
         <AppBreadcrumbs />
       </div>
       <InviteHandler />

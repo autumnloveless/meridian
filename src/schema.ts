@@ -13,18 +13,28 @@ export const Document = co.map({
 
 export const Requirement = co.map({
   name: z.string(),
+  sequence_number: z.int(),
   details: co.richText(),
   version: z.int(),
   status: z.enum(["Defined", "In Development", "In Testing", "Completed", "Archived"]),
   get children(): co.Optional<co.List<typeof Requirement>> { return co.optional(co.list(Requirement)) }
+}).withMigration((requirement) => {
+  if (!requirement.$jazz.has("sequence_number")) {
+    requirement.$jazz.set("sequence_number", 1);
+  }
 })
 
 export const Test = co.map({
   name: z.string(),
+  sequence_number: z.int(),
   details: co.richText(),
   version: z.int(),
   is_folder: z.boolean(),
   get children(): co.Optional<co.List<typeof Test>> { return co.optional(co.list(Test)) }
+}).withMigration((test) => {
+  if (!test.$jazz.has("sequence_number")) {
+    test.$jazz.set("sequence_number", 1);
+  }
 })
 export type Test = co.loaded<typeof Test>
 
@@ -78,6 +88,8 @@ export const Project = co.map({
   name: z.string(),
   project_key: z.string(),
   next_task_number: z.int(),
+  next_requirement_number: z.int(),
+  next_test_number: z.int(),
   overview: co.richText(),
   documents: co.list(Document),
   requirements: co.list(Requirement),
@@ -110,6 +122,14 @@ export const Project = co.map({
       }
     }
     project.$jazz.set("next_task_number", highest + 1);
+  }
+
+  if (!project.$jazz.has("next_requirement_number")) {
+    project.$jazz.set("next_requirement_number", 1);
+  }
+
+  if (!project.$jazz.has("next_test_number")) {
+    project.$jazz.set("next_test_number", 1);
   }
 })
 export type Project = co.loaded<typeof Project>;

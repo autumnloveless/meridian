@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import {
   DndContext,
@@ -27,9 +27,16 @@ import {
   deleteRequirementById,
   findRequirement,
   flattenRequirements,
+  isRequirementDescendant,
   moveRequirement,
+  relocateRequirement,
   type LoadedRequirement,
 } from "@/components/requirements/requirementTreeUtils";
+import {
+  allocateRequirementId,
+  ensureRequirementSequenceNumbers,
+  getRequirementDisplayId,
+} from "@/lib/artifactIds";
 
 const ITEM_PREFIX = "req:";
 const itemDndId = (id: string) => `${ITEM_PREFIX}${id}`;
@@ -43,20 +50,56 @@ const statusOptions: LoadedRequirement["status"][] = [
   "Archived",
 ];
 
+type MoveOption = {
+  id: string;
+  label: string;
+  disabled?: boolean;
+};
+
 const QuickRequirementPane = ({
   requirement,
+  requirementDisplayId,
+  moveOptions,
   open,
   onClose,
   onDelete,
+  onMove,
   pageHref,
 }: {
   requirement: LoadedRequirement | null;
+  requirementDisplayId?: string;
+  moveOptions: MoveOption[];
   open: boolean;
   onClose: () => void;
   onDelete: () => void;
+  onMove: (parentId: string | null) => void;
   pageHref?: string;
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [moveTargetId, setMoveTargetId] = useState<string>("");
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [onClose, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setConfirmDelete(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setMoveTargetId("");
+  }, [requirement?.$jazz.id]);
 
   if (!open || !requirement) return null;
 
@@ -64,11 +107,18 @@ const QuickRequirementPane = ({
 
   return (
     <>
-      <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-xl border-l border-border bg-background shadow-xl">
-        <header className="flex items-center justify-between border-b border-border px-4 py-3">
+      <button
+        type="button"
+        aria-label="Close requirement details"
+        className="fixed inset-0 z-40 bg-black/20"
+        onClick={onClose}
+      />
+
+      <aside className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] w-full flex-col rounded-t-xl border border-stone-200 bg-white shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-full md:max-w-[420px] md:rounded-none md:border-l md:border-t-0">
+        <header className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Requirement</p>
-            <h3 className="text-sm font-semibold">{requirement.name || "Untitled requirement"}</h3>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Requirement details</p>
+            {requirementDisplayId ? <p className="text-xs text-sky-700">{requirementDisplayId}</p> : null}
           </div>
           <div className="flex items-center gap-2">
             {pageHref ? (
@@ -93,15 +143,15 @@ const QuickRequirementPane = ({
           </div>
         </header>
 
-        <div className="space-y-4 overflow-y-auto p-4 pb-8">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <label className="block space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Summary</span>
             <Input value={requirement.name} onChange={(event) => requirement.$jazz.set("name", event.target.value)} />
           </label>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Status</span>
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={requirement.status}
@@ -114,7 +164,7 @@ const QuickRequirementPane = ({
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Version</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Version</span>
               <Input
                 type="number"
                 min={1}
@@ -125,7 +175,7 @@ const QuickRequirementPane = ({
           </div>
 
           <label className="block space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Details</span>
             <textarea
               className="min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={details}
@@ -133,6 +183,32 @@ const QuickRequirementPane = ({
               placeholder="Write requirement details"
             />
           </label>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Move Under</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={moveTargetId}
+                onChange={(event) => setMoveTargetId(event.target.value)}
+              >
+                <option value="">Root level</option>
+                {moveOptions.map((option) => (
+                  <option key={option.id} value={option.id} disabled={option.disabled}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="self-end"
+              onClick={() => onMove(moveTargetId || null)}
+            >
+              Move
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -159,12 +235,14 @@ const RequirementRow = ({
   projectId,
   onSelect,
   onAddChild,
+  projectKey,
 }: {
   entry: ReturnType<typeof flattenRequirements>[number];
   orgId: string;
   projectId: string;
   onSelect: (id: string) => void;
   onAddChild: (item: LoadedRequirement) => void;
+  projectKey: string;
 }) => {
   const sortable = useSortable({ id: itemDndId(entry.item.$jazz.id) });
   const style = {
@@ -172,6 +250,8 @@ const RequirementRow = ({
     transition: sortable.transition,
     opacity: sortable.isDragging ? 0.5 : 1,
   };
+
+  const requirementDisplayId = getRequirementDisplayId(entry.item, projectKey);
 
   return (
     <tr
@@ -189,13 +269,13 @@ const RequirementRow = ({
       </td>
       <td className="w-28 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-700">{entry.item.status}</td>
       <td className="w-20 px-2 py-1 text-xs text-stone-700">v{entry.item.version}</td>
-      <td className="w-24 px-2 py-1 text-xs text-sky-700">
+      <td className="w-36 px-2 py-1 text-xs text-sky-700">
         <Link
           to={`/organizations/${orgId}/projects/${projectId}/requirements/${entry.item.$jazz.id}`}
           className="hover:underline"
           onClick={(event) => event.stopPropagation()}
         >
-          Open
+          {requirementDisplayId}
         </Link>
       </td>
       <td className="w-16 px-2 py-1 text-right">
@@ -256,6 +336,11 @@ export const ProjectRequirementsPage = () => {
     return flattened.filter((entry) => entry.item.name.toLowerCase().includes(q));
   }, [project, search]);
 
+  const allEntries = useMemo(() => {
+    if (!project.$isLoaded) return [];
+    return flattenRequirements(project.requirements.map((item) => item));
+  }, [project]);
+
   const entriesById = useMemo(
     () => new Map(entries.map((entry) => [entry.item.$jazz.id, entry])),
     [entries],
@@ -266,6 +351,11 @@ export const ProjectRequirementsPage = () => {
     return findRequirement(project.requirements.map((item) => item), selectedRequirementId);
   }, [project, selectedRequirementId]);
 
+  useEffect(() => {
+    if (!project.$isLoaded) return;
+    ensureRequirementSequenceNumbers(project, project.requirements.map((item) => item));
+  }, [project]);
+
   const createRootRequirement = () => {
     if (!project.$isLoaded) return;
     const summary = newSummary.trim();
@@ -274,6 +364,7 @@ export const ProjectRequirementsPage = () => {
     project.requirements.$jazz.push(
       Requirement.create({
         name: summary,
+        ...allocateRequirementId(project as any),
         details: "",
         version: 1,
         status: "Defined",
@@ -291,6 +382,7 @@ export const ProjectRequirementsPage = () => {
     (parent.children as any)?.$jazz.push(
       Requirement.create({
         name: "New sub-requirement",
+        ...allocateRequirementId(project as any),
         details: "",
         version: 1,
         status: "Defined",
@@ -369,7 +461,7 @@ export const ProjectRequirementsPage = () => {
                   <th className="px-2 py-1 text-left">Summary</th>
                   <th className="w-28 px-2 py-1 text-left">Status</th>
                   <th className="w-20 px-2 py-1 text-left">Version</th>
-                  <th className="w-24 px-2 py-1 text-left">Details</th>
+                  <th className="w-36 px-2 py-1 text-left">Key</th>
                   <th className="w-16 px-2 py-1 text-right">Child</th>
                 </tr>
               </thead>
@@ -388,6 +480,7 @@ export const ProjectRequirementsPage = () => {
                         projectId={projectId}
                         onSelect={setSelectedRequirementId}
                         onAddChild={addChild}
+                        projectKey={project.project_key}
                       />
                     ))
                   )}
@@ -401,11 +494,25 @@ export const ProjectRequirementsPage = () => {
       <QuickRequirementPane
         open={Boolean(selected)}
         requirement={selected}
+        requirementDisplayId={selected ? getRequirementDisplayId(selected, project.project_key) : undefined}
+        moveOptions={selected
+          ? allEntries
+            .filter((entry) => entry.item.$jazz.id !== selected.$jazz.id)
+            .map((entry) => ({
+              id: entry.item.$jazz.id,
+              label: `${"  ".repeat(entry.depth)}${entry.item.name || "Untitled requirement"}`,
+              disabled: isRequirementDescendant(selected, entry.item.$jazz.id),
+            }))
+          : []}
         pageHref={selected ? `/organizations/${orgId}/projects/${projectId}/requirements/${selected.$jazz.id}` : undefined}
         onDelete={() => {
           if (!selected) return;
           deleteRequirementById(project.requirements, selected.$jazz.id);
           setSelectedRequirementId(null);
+        }}
+        onMove={(parentId) => {
+          if (!selected) return;
+          relocateRequirement(project.requirements, selected.$jazz.id, parentId);
         }}
         onClose={() => setSelectedRequirementId(null)}
       />

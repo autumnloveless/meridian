@@ -123,3 +123,40 @@ export const moveRequirement = (
     rootList.$jazz.applyDiff([...rootList]);
   }
 };
+
+export const relocateRequirement = (
+  rootList: any,
+  activeId: string,
+  targetParentId: string | null,
+) => {
+  const roots = [...rootList] as LoadedRequirement[];
+  const active = findRequirement(roots, activeId);
+  if (!active) return false;
+
+  if (targetParentId === activeId) return false;
+  if (targetParentId && isRequirementDescendant(active, targetParentId)) return false;
+
+  const source = findParentList(roots, activeId);
+  if (!source) return false;
+
+  const [moved] = source.list.$jazz.splice(source.index, 1);
+  if (!moved) return false;
+
+  if (!targetParentId) {
+    rootList.$jazz.push(moved);
+    return true;
+  }
+
+  const targetParent = findRequirement([...rootList] as LoadedRequirement[], targetParentId);
+  if (!targetParent) {
+    rootList.$jazz.push(moved);
+    return false;
+  }
+
+  if (!targetParent.children) {
+    targetParent.$jazz.set("children", []);
+  }
+
+  (targetParent.children as any)?.$jazz.push(moved);
+  return true;
+};

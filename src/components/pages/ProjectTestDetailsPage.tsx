@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { MoreHorizontal } from "lucide-react";
 import { useCoState } from "jazz-tools/react";
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Project } from "@/schema";
 import { deleteTestById, findTest } from "@/components/tests/testTreeUtils";
+import { ensureTestSequenceNumbers, getTestDisplayId } from "@/lib/artifactIds";
 
 export const ProjectTestDetailsPage = () => {
   const { orgId, projectId, testId } = useParams();
@@ -46,6 +47,11 @@ export const ProjectTestDetailsPage = () => {
     return findTest(project.tests.map((item) => item), testId);
   }, [project, testId]);
 
+  useEffect(() => {
+    if (!project.$isLoaded) return;
+    ensureTestSequenceNumbers(project, project.tests.map((item) => item));
+  }, [project]);
+
   if (!orgId || !projectId || !testId) {
     return <div className="text-sm text-red-700">Invalid test URL.</div>;
   }
@@ -66,6 +72,7 @@ export const ProjectTestDetailsPage = () => {
   }
 
   const details = test.details.$isLoaded ? test.details.toString() : "";
+  const testDisplayId = getTestDisplayId(test, project.project_key);
 
   return (
     <section className="mx-auto w-full max-w-3xl space-y-4">
@@ -73,6 +80,7 @@ export const ProjectTestDetailsPage = () => {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Test</p>
           <h2 className="text-xl font-semibold">{test.name || "Untitled test"}</h2>
+          <p className="text-xs text-muted-foreground">{testDisplayId}</p>
         </div>
 
         <div className="flex items-center gap-2">

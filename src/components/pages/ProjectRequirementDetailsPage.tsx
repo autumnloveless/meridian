@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { MoreHorizontal } from "lucide-react";
 import { useCoState } from "jazz-tools/react";
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Project } from "@/schema";
 import { deleteRequirementById, findRequirement, type LoadedRequirement } from "@/components/requirements/requirementTreeUtils";
+import { ensureRequirementSequenceNumbers, getRequirementDisplayId } from "@/lib/artifactIds";
 
 const statusOptions: LoadedRequirement["status"][] = [
   "Defined",
@@ -54,6 +55,11 @@ export const ProjectRequirementDetailsPage = () => {
     return findRequirement(project.requirements.map((item) => item), requirementId);
   }, [project, requirementId]);
 
+  useEffect(() => {
+    if (!project.$isLoaded) return;
+    ensureRequirementSequenceNumbers(project, project.requirements.map((item) => item));
+  }, [project]);
+
   if (!orgId || !projectId || !requirementId) {
     return <div className="text-sm text-red-700">Invalid requirement URL.</div>;
   }
@@ -74,6 +80,7 @@ export const ProjectRequirementDetailsPage = () => {
   }
 
   const details = requirement.details.$isLoaded ? requirement.details.toString() : "";
+  const requirementDisplayId = getRequirementDisplayId(requirement, project.project_key);
 
   return (
     <section className="mx-auto w-full max-w-3xl space-y-4">
@@ -81,6 +88,7 @@ export const ProjectRequirementDetailsPage = () => {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Requirement</p>
           <h2 className="text-xl font-semibold">{requirement.name || "Untitled requirement"}</h2>
+          <p className="text-xs text-muted-foreground">{requirementDisplayId}</p>
         </div>
 
         <div className="flex items-center gap-2">

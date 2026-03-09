@@ -19,7 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
-import { ensureDefaultBuckets, type LoadedOrganization } from "@/components/tasks/organizationTasksShared";
+import {
+  collectOrganizationTaskContainers,
+  ensureDefaultBuckets,
+  type LoadedOrganization,
+} from "@/components/tasks/organizationTasksShared";
 
 type LoadedTask = co.loaded<typeof TaskSchema>;
 
@@ -54,12 +58,10 @@ const KanbanColumn = ({ status, children }: { status: string; children: React.Re
 const KanbanTaskCard = ({
   entry,
   orgId,
-  keyPrefix,
   onSelect,
 }: {
-  entry: { task: LoadedTask };
+  entry: { task: LoadedTask; projectId: string | null; taskKeyPrefix: string };
   orgId: string;
-  keyPrefix: string;
   onSelect: (id: string) => void;
 }) => {
   const draggable = useDraggable({ id: taskDndId(entry.task.$jazz.id) });
@@ -79,11 +81,13 @@ const KanbanTaskCard = ({
     >
       <p className="text-sm font-medium">{entry.task.summary}</p>
       <Link
-        to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+        to={entry.projectId
+          ? `/organizations/${orgId}/projects/${entry.projectId}/tasks/${entry.task.$jazz.id}`
+          : `/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
         className="text-[11px] text-sky-700 hover:underline"
         onClick={(event) => event.stopPropagation()}
       >
-        {getTaskDisplayId(entry.task, keyPrefix)}
+        {getTaskDisplayId(entry.task, entry.taskKeyPrefix)}
       </Link>
     </button>
   );
@@ -116,6 +120,20 @@ export const OrganizationOverviewPage = () => {
           },
         },
       },
+      projects: {
+        $each: {
+          task_buckets: {
+            $each: {
+              tasks: {
+                $each: {
+                  assigned_to: true,
+                  details: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -131,7 +149,9 @@ export const OrganizationOverviewPage = () => {
 
   useEffect(() => {
     if (!organization.$isLoaded) return;
-    ensureDefaultBuckets(organization as LoadedOrganization);
+    const loadedOrganization = organization as LoadedOrganization;
+    ensureDefaultBuckets(loadedOrganization);
+    loadedOrganization.projects.forEach((project) => ensureDefaultBuckets(project));
   }, [organization]);
 
   useEffect(() => {
@@ -159,17 +179,28 @@ export const OrganizationOverviewPage = () => {
   }, [organization, draft, lastSaved]);
 
   const activeTasks = useMemo(() => {
-    if (!organization.$isLoaded) return [] as Array<{ bucket: any; bucketName: string; task: LoadedTask }>;
-
-    const tasks: Array<{ bucket: any; bucketName: string; task: LoadedTask }> = [];
-    for (const bucket of organization.task_buckets.map((entry) => entry)) {
-      for (const task of bucket.tasks.map((entry) => entry)) {
-        if (task.status === "Archived") continue;
-        tasks.push({ bucket, bucketName: bucket.name, task });
-      }
+    if (!organization.$isLoaded) {
+      return [] as Array<{
+        bucket: any;
+        bucketName: string;
+        projectId: string | null;
+        projectName: string | null;
+        taskKeyPrefix: string;
+        task: LoadedTask;
+      }>;
     }
 
-    return tasks.sort((left, right) => left.task.order - right.task.order || left.task.summary.localeCompare(right.task.summary));
+    return collectOrganizationTaskContainers(organization as LoadedOrganization)
+      .filter((entry) => entry.task.status !== "Archived")
+      .map((entry) => ({
+        bucket: entry.bucket,
+        bucketName: entry.bucket.name,
+        projectId: entry.projectId,
+        projectName: entry.projectName,
+        taskKeyPrefix: entry.taskKeyPrefix,
+        task: entry.task,
+      }))
+      .sort((left, right) => left.task.order - right.task.order || left.task.summary.localeCompare(right.task.summary));
   }, [organization]);
 
   const selectedTaskEntry = useMemo(() => {
@@ -180,7 +211,7 @@ export const OrganizationOverviewPage = () => {
   const selectedTask = selectedTaskEntry?.task ?? null;
 
   const columns = useMemo(() => {
-    const initial: Record<string, Array<{ bucketName: string; task: LoadedTask }>> = {
+    const initial: Record<string, Array<{ bucketName: string; projectId: string | null; taskKeyPrefix: string; task: LoadedTask }>> = {
       Backlog: [],
       "In Progress": [],
       "In-Review": [],
@@ -331,6 +362,7 @@ export const OrganizationOverviewPage = () => {
                 <tr>
                   <th className="w-28 px-2 py-1 text-left">Key</th>
                   <th className="px-2 py-1 text-left">Summary</th>
+                  <th className="w-36 px-2 py-1 text-left">Project</th>
                   <th className="w-24 px-2 py-1 text-left">Type</th>
                   <th className="w-24 px-2 py-1 text-left">Status</th>
                   <th className="w-24 px-2 py-1 text-left">Bucket</th>
@@ -339,21 +371,36 @@ export const OrganizationOverviewPage = () => {
               <tbody>
                 {activeTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-2 py-3 text-xs text-muted-foreground">No active tasks yet.</td>
+                    <td colSpan={6} className="px-2 py-3 text-xs text-muted-foreground">No active tasks yet.</td>
                   </tr>
                 ) : (
                   activeTasks.map((entry) => (
                     <tr key={entry.task.$jazz.id} className="cursor-pointer border-t hover:bg-muted/40" onClick={() => setSelectedTaskId(entry.task.$jazz.id)}>
                       <td className="px-2 py-1 text-[11px] font-medium text-sky-700">
                         <Link
-                          to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+                          to={entry.projectId
+                            ? `/organizations/${orgId}/projects/${entry.projectId}/tasks/${entry.task.$jazz.id}`
+                            : `/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
                           className="hover:underline"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          {getTaskDisplayId(entry.task, organization.project_key)}
+                          {getTaskDisplayId(entry.task, entry.taskKeyPrefix)}
                         </Link>
                       </td>
                       <td className="px-2 py-1">{entry.task.summary}</td>
+                      <td className="px-2 py-1 text-xs text-sky-700">
+                        {entry.projectId && entry.projectName ? (
+                          <Link
+                            to={`/organizations/${orgId}/projects/${entry.projectId}`}
+                            className="hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {entry.projectName}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground">Organization</span>
+                        )}
+                      </td>
                       <td className="px-2 py-1 text-[11px] uppercase">{entry.task.type}</td>
                       <td className="px-2 py-1 text-[11px] uppercase">{entry.task.status}</td>
                       <td className="px-2 py-1 text-xs text-muted-foreground">{entry.bucketName}</td>
@@ -383,7 +430,6 @@ export const OrganizationOverviewPage = () => {
                               key={entry.task.$jazz.id}
                               entry={entry}
                               orgId={orgId}
-                              keyPrefix={organization.project_key}
                               onSelect={setSelectedTaskId}
                             />
                           ))
@@ -401,8 +447,12 @@ export const OrganizationOverviewPage = () => {
       <TaskDetailsPane
         open={Boolean(selectedTask)}
         task={selectedTask}
-        taskIdPrefix={organization.project_key}
-        taskHref={selectedTask ? `/organizations/${orgId}/tasks/${selectedTask.$jazz.id}` : undefined}
+        taskIdPrefix={selectedTaskEntry?.taskKeyPrefix}
+        taskHref={selectedTaskEntry
+          ? (selectedTaskEntry.projectId
+            ? `/organizations/${orgId}/projects/${selectedTaskEntry.projectId}/tasks/${selectedTaskEntry.task.$jazz.id}`
+            : `/organizations/${orgId}/tasks/${selectedTaskEntry.task.$jazz.id}`)
+          : undefined}
         onArchive={() => {
           if (!selectedTask) return;
           selectedTask.$jazz.set("status", "Archived");
