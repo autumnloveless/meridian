@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { useParams } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useAccount, useCoState } from "jazz-tools/react";
 
 import { Account, Organization } from "@/schema";
@@ -30,11 +30,21 @@ const boardColumns = [
 
 export const OrganizationTasksBoardPage = () => {
   const { orgId } = useParams();
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState("");
   const [taskType, setTaskType] = useState<LoadedTask["type"]>("Task");
   const [selectedTargetId, setSelectedTargetId] = useState(() => (orgId ? `org:${orgId}` : ""));
   const [summary, setSummary] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const profile = useAccount(Account, {
     resolve: { profile: true },
@@ -107,6 +117,10 @@ export const OrganizationTasksBoardPage = () => {
 
   if (!organization.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading active board...</div>;
+  }
+
+  if (isMobile) {
+    return <Navigate to="../list" replace />;
   }
 
   return (

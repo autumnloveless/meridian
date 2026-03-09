@@ -49,6 +49,10 @@ export const OrganizationLayout = () => {
     ? location.pathname.startsWith(`${organizationBasePath}/tasks`)
     : false;
 
+  const visibleTaskSubNavItems = isMobileNavOpen
+    ? taskSubNavItems.filter((item) => item.to !== "tasks/board")
+    : taskSubNavItems;
+
   const activeDocId = useMemo(() => {
     const match = location.pathname.match(/\/docs\/(.+)$/);
     return match?.[1] ?? null;
@@ -109,7 +113,7 @@ export const OrganizationLayout = () => {
 
               {item.to === "tasks" && isInTasksSection ? (
                 <div className="ml-4 flex flex-col gap-1 border-l pl-2">
-                  {taskSubNavItems.map((subItem) => {
+                  {visibleTaskSubNavItems.map((subItem) => {
                     const SubIcon = subItem.icon;
 
                     return (

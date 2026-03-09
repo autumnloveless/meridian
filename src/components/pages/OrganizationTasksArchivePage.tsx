@@ -118,7 +118,7 @@ export const OrganizationTasksArchivePage = () => {
       <div>
         <h2 className="text-xl font-semibold text-stone-900">Archived Tasks</h2>
         <div className="mt-2 space-y-2">
-          <div className="relative w-full max-w-[260px]">
+          <div className="relative w-full sm:max-w-[260px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
               className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
@@ -184,7 +184,7 @@ export const OrganizationTasksArchivePage = () => {
                 <button
                   key={task.$jazz.id}
                   type="button"
-                  className="w-full border-b border-stone-200 px-3 py-3 text-left last:border-b-0"
+                  className="w-full border-b border-stone-200 px-2.5 py-2 text-left last:border-b-0"
                   onClick={() => setSelectedTaskId(task.$jazz.id)}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -193,11 +193,10 @@ export const OrganizationTasksArchivePage = () => {
                       {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm font-medium text-stone-800">{task.summary}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p className="mt-0.5 text-sm font-medium text-stone-800">{task.summary}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
                     <ProjectBadge projectName={entry.projectName} />
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-600">{task.status}</span>
                   </div>
                 </button>
               );

@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, GripVertical, MoreHorizontal, Plus, Search } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, FolderKanban, GripVertical, MoreHorizontal, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,10 +78,18 @@ function TaskRow({
   task,
   bucketId,
   onSelect,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: {
   task: LoadedTask;
   bucketId: string;
   onSelect: (task: LoadedTask) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const sortable = useSortable({
     id: taskDndId(task.$jazz.id),
@@ -133,6 +141,34 @@ function TaskRow({
             : "?")?.toUpperCase()}
         </span>
       </td>
+      <td className="w-16 px-1.5 py-1">
+        <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 items-center justify-center rounded border border-stone-300 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+            disabled={!canMoveUp}
+            aria-label={`Move ${task.summary} up`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onMoveUp();
+            }}
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 items-center justify-center rounded border border-stone-300 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+            disabled={!canMoveDown}
+            aria-label={`Move ${task.summary} down`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onMoveDown();
+            }}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
     </tr>
   );
 }
@@ -178,7 +214,7 @@ function DragTaskPreview({ task }: { task: LoadedTask }) {
 function InsertionIndicatorRow() {
   return (
     <tr>
-      <td colSpan={6} className="px-1.5 py-0">
+      <td colSpan={7} className="px-1.5 py-0">
         <div className="h-0.5 w-full rounded bg-primary" />
       </td>
     </tr>
@@ -458,6 +494,21 @@ export const ProjectTasksListPage = () => {
     normalizeTaskOrder(targetBucket);
   };
 
+  const moveTaskWithinBucket = (bucketId: string, taskId: string, direction: "up" | "down") => {
+    const bucket = project.task_buckets.find((candidate) => candidate.$jazz.id === bucketId);
+    if (!bucket) return;
+
+    const currentIndex = bucket.tasks.findIndex((task) => task.$jazz.id === taskId);
+    if (currentIndex < 0) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= bucket.tasks.length) return;
+
+    const reordered = arrayMove([...bucket.tasks], currentIndex, targetIndex);
+    bucket.tasks.$jazz.applyDiff(reordered);
+    normalizeTaskOrder(bucket);
+  };
+
   const resolveDropTarget = (overId: string) => {
     const overTaskId = parseTaskDndId(overId);
     const overBucketId = parseBucketDndId(overId);
@@ -638,14 +689,27 @@ export const ProjectTasksListPage = () => {
         {!isEditing ? (
           <div className="ml-auto flex items-center gap-1">
             {bucket.type === "Backlog" ? (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={createCustomBucket}>
-                Create new bucket
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 px-0 text-xs sm:w-auto sm:px-2"
+                onClick={createCustomBucket}
+                aria-label="Create new bucket"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Create new bucket</span>
               </Button>
             ) : null}
 
             {bucket.type !== "Backlog" ? (
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-stone-600">
-                Archive completed tasks
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 px-0 text-xs text-stone-600 sm:w-auto sm:px-2"
+                aria-label="Archive completed tasks"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Archive completed tasks</span>
               </Button>
             ) : null}
 
@@ -715,8 +779,8 @@ export const ProjectTasksListPage = () => {
     <section className="space-y-3">
       <div>
         <h2 className="text-xl font-semibold text-stone-900">Backlog</h2>
-        <div className="font-[Inter] mt-2 flex flex-col gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative w-full max-w-[220px]">
+        <div className="font-[Inter] mt-2 flex flex-col gap-2 sm:rounded sm:border sm:border-stone-200 sm:bg-stone-50 sm:px-2 sm:py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:max-w-[220px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
             <Input
               className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
@@ -782,7 +846,7 @@ export const ProjectTasksListPage = () => {
                             key={task.$jazz.id}
                             role="button"
                             tabIndex={0}
-                            className="w-full border-b border-stone-200 bg-white px-3 py-3 text-left last:border-b-0"
+                            className="w-full border-b border-stone-200 bg-white px-2.5 py-2 text-left last:border-b-0"
                             onClick={() => setSelectedTaskId(task.$jazz.id)}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
@@ -797,19 +861,15 @@ export const ProjectTasksListPage = () => {
                                 {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
                               </span>
                             </div>
-                            <p className="mt-1 text-sm text-stone-800">{task.summary}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
-                              <span>{task.tags[0] ?? "No tag"}</span>
-                              <span>{task.status}</span>
-                            </div>
+                            <p className="mt-0.5 text-sm text-stone-800">{task.summary}</p>
 
-                            <div className="mt-2 flex items-center gap-2">
-                              <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-500" htmlFor={`bucket-move-${task.$jazz.id}`}>
-                                Bucket
-                              </label>
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <span className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-600">
+                                <FolderKanban className="h-3.5 w-3.5" />
+                              </span>
                               <select
                                 id={`bucket-move-${task.$jazz.id}`}
-                                className="h-8 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
+                                className="h-8 min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
                                 value={bucket.$jazz.id}
                                 onClick={(event) => event.stopPropagation()}
                                 onChange={(event) => {
@@ -823,6 +883,31 @@ export const ProjectTasksListPage = () => {
                                   </option>
                                 ))}
                               </select>
+
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-700 disabled:opacity-40"
+                                disabled={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) <= 0}
+                                aria-label={`Move ${task.summary} up`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  moveTaskWithinBucket(bucket.$jazz.id, task.$jazz.id, "up");
+                                }}
+                              >
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-700 disabled:opacity-40"
+                                disabled={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) >= bucket.tasks.length - 1}
+                                aria-label={`Move ${task.summary} down`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  moveTaskWithinBucket(bucket.$jazz.id, task.$jazz.id, "down");
+                                }}
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </div>
                         ))
@@ -839,6 +924,7 @@ export const ProjectTasksListPage = () => {
                             <th className="w-24 px-1.5 py-1 text-left">Tag</th>
                             <th className="w-28 px-1.5 py-1 text-left">Status</th>
                             <th className="w-12 px-1.5 py-1 text-right">Asg</th>
+                            <th className="w-16 px-1.5 py-1 text-right">Move</th>
                           </tr>
                         </thead>
 
@@ -846,7 +932,7 @@ export const ProjectTasksListPage = () => {
                           <BucketBody bucketId={bucket.$jazz.id}>
                             {filteredTasks.length === 0 && indicatorIndex === null ? (
                               <tr>
-                                <td colSpan={6} className="px-2 py-2 text-xs text-stone-500">
+                                <td colSpan={7} className="px-2 py-2 text-xs text-stone-500">
                                   No tasks in this bucket.
                                 </td>
                               </tr>
@@ -859,6 +945,10 @@ export const ProjectTasksListPage = () => {
                                       task={task}
                                       bucketId={bucket.$jazz.id}
                                       onSelect={(nextTask) => setSelectedTaskId(nextTask.$jazz.id)}
+                                      canMoveUp={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) > 0}
+                                      canMoveDown={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) < bucket.tasks.length - 1}
+                                      onMoveUp={() => moveTaskWithinBucket(bucket.$jazz.id, task.$jazz.id, "up")}
+                                      onMoveDown={() => moveTaskWithinBucket(bucket.$jazz.id, task.$jazz.id, "down")}
                                     />
                                   </Fragment>
                                 ))}

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { co } from "jazz-tools";
 import { useAccount, useCoState } from "jazz-tools/react";
-import { useParams } from "react-router";
+import { Navigate, useParams } from "react-router";
 import {
   DndContext,
   DragOverlay,
@@ -189,10 +189,24 @@ function DragTaskPreview({ task }: { task: LoadedTask }) {
 
 export const ProjectTasksBoardPage = () => {
   const { projectId } = useParams();
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [draftTask, setDraftTask] = useState<DraftTask>(defaultDraftTask);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  if (isMobile) {
+    return <Navigate to="../list" replace />;
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

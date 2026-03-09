@@ -86,6 +86,10 @@ export const ProjectLayout = () => {
     ? location.pathname.startsWith(`${projectBasePath}/docs`)
     : false;
 
+  const visibleTaskSubNavItems = isMobileNavOpen
+    ? taskSubNavItems.filter((item) => item.to !== "tasks/board")
+    : taskSubNavItems;
+
   const organizationSubtitle = orgId
     ? organization.$isLoaded
       ? organization.name
@@ -159,7 +163,7 @@ export const ProjectLayout = () => {
 
               {item.to === "tasks" && isInTasksSection ? (
                 <div className="ml-5 flex flex-col gap-1 border-l pl-2">
-                  {taskSubNavItems.map((subItem) => {
+                  {visibleTaskSubNavItems.map((subItem) => {
                     const SubIcon = subItem.icon;
 
                     return (
