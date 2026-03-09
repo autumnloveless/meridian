@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
+import { MoreHorizontal } from "lucide-react";
 import { co } from "jazz-tools";
-import { useAccount, useCoState } from "jazz-tools/react";
+import { useCoState } from "jazz-tools/react";
 
-import { Account, Document, Organization, Project } from "@/schema";
+import { Document, Organization, Project } from "@/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/components/dialogs/CreateProjectDialog";
 import { getProjectBasePath } from "@/lib/projectPaths";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export const OrganizationProjectsPage = () => {
   const { orgId } = useParams();
@@ -16,31 +18,13 @@ export const OrganizationProjectsPage = () => {
       projects: { $each: true },
     },
   });
-  const account = useAccount(Account, {
-    resolve: {
-      root: {
-        pinned_projects: { $each: true },
-      },
-    },
-  });
 
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
 
-  const pinnedProjectIds = useMemo(() => {
-    if (!account.$isLoaded) return new Set<string>();
-    return new Set(account.root.pinned_projects.map((project) => project.$jazz.id));
-  }, [account]);
-
   const projects = useMemo(() => {
     if (!organization.$isLoaded) return [];
-    const all = [...organization.projects];
-    return all.sort((left, right) => {
-      const leftPinned = pinnedProjectIds.has(left.$jazz.id);
-      const rightPinned = pinnedProjectIds.has(right.$jazz.id);
-      if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
-      return left.name.localeCompare(right.name);
-    });
-  }, [organization, pinnedProjectIds]);
+    return [...organization.projects].sort((left, right) => left.name.localeCompare(right.name));
+  }, [organization]);
 
   const createProject = ({ name }: { name: string }) => {
     if (!organization.$isLoaded) return;
@@ -59,16 +43,28 @@ export const OrganizationProjectsPage = () => {
     organization.projects.$jazz.push(project);
   };
 
-  const togglePinned = (project: Project) => {
-    if (!account.$isLoaded) return;
-    const isPinned = account.root.pinned_projects.some((pinned) => pinned.$jazz.id === project.$jazz.id);
+  const renameProject = (projectId: string) => {
+    if (!organization.$isLoaded) return;
 
-    if (isPinned) {
-      account.root.pinned_projects.$jazz.remove((pinned) => pinned.$jazz.id === project.$jazz.id);
-      return;
-    }
+    const project = organization.projects.find((candidate) => candidate.$jazz.id === projectId);
+    if (!project) return;
 
-    account.root.pinned_projects.$jazz.push(project);
+    const nextName = window.prompt("Rename project", project.name)?.trim();
+    if (!nextName || nextName === project.name) return;
+
+    project.$jazz.set("name", nextName);
+  };
+
+  const deleteProject = (projectId: string) => {
+    if (!organization.$isLoaded) return;
+
+    const project = organization.projects.find((candidate) => candidate.$jazz.id === projectId);
+    if (!project) return;
+
+    const confirmed = window.confirm(`Delete project \"${project.name}\"?`);
+    if (!confirmed) return;
+
+    organization.projects.$jazz.remove((candidate) => candidate.$jazz.id === projectId);
   };
 
   if (!orgId) return <div className="text-sm text-red-700">Invalid organization URL.</div>;
@@ -90,15 +86,30 @@ export const OrganizationProjectsPage = () => {
             <ul className="space-y-2">
               {projects.map((project) => {
                 const path = getProjectBasePath(project.$jazz.id, orgId);
-                const isPinned = pinnedProjectIds.has(project.$jazz.id);
                 return (
                   <li key={project.$jazz.id} className="flex items-center justify-between rounded border bg-background px-3 py-2">
                     <Link className="text-sm font-medium hover:underline" to={`${path}/overview`}>
                       {project.name}
                     </Link>
-                    <Button type="button" variant={isPinned ? "secondary" : "outline"} size="sm" onClick={() => togglePinned(project)}>
-                      {isPinned ? "Pinned" : "Pin"}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Actions for ${project.name}`}>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => renameProject(project.$jazz.id)}>
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => deleteProject(project.$jazz.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          Delete project
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </li>
                 );
               })}

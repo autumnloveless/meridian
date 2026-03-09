@@ -52,35 +52,41 @@ export const OrganizationsPage = () => {
   };
 
   return (
-    <section className="p-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Organizations</CardTitle>
-          <Button type="button" onClick={() => setIsCreateOrgOpen(true)}>
+    <section className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader className="flex flex-col gap-3 border-b border-border/70 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-xl">Organizations</CardTitle>
+            <p className="pt-1 text-sm text-muted-foreground">Browse your organizations and jump directly into projects.</p>
+          </div>
+          <Button type="button" onClick={() => setIsCreateOrgOpen(true)} className="sm:self-start">
             Create Org
           </Button>
         </CardHeader>
-        <CardContent>
-          <p className="pb-3 text-sm text-muted-foreground">Select an organization to view details.</p>
+        <CardContent className="">
           {organizations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No organizations found.</p>
+            <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">No organizations found.</p>
+            </div>
           ) : (
             <ul className="space-y-4">
               {organizations.map(({ org, type }) => (
-                <li key={org.$jazz.id} className="space-y-1">
+                <li key={org.$jazz.id} className="rounded-lg border border-border/70 bg-card/40 p-4">
                   <div className="flex items-center gap-2">
                     <Link
                       to={`/organizations/${org.$jazz.id}/overview`}
-                      className="text-sm font-semibold text-foreground hover:underline"
+                      className="text-sm font-semibold text-foreground transition-colors hover:text-primary hover:underline"
                     >
                       {org.name}
                     </Link>
-                    <span className="text-xs text-muted-foreground">{type === "personal" ? "Personal" : "Member"}</span>
+                    <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {type === "personal" ? "Personal" : "Member"}
+                    </span>
                   </div>
 
-                  <ul className="ml-5 list-disc space-y-1 text-sm">
+                  <ul className="mt-3 space-y-1 border-l border-border/70 pl-4 text-sm">
                     {org.projects.length === 0 ? (
-                      <li className="list-none text-xs text-muted-foreground">No projects</li>
+                      <li className="text-xs italic text-muted-foreground">No projects</li>
                     ) : (
                       [...org.projects]
                         .sort((left, right) => left.name.localeCompare(right.name))
@@ -88,7 +94,7 @@ export const OrganizationsPage = () => {
                           <li key={project.$jazz.id}>
                             <Link
                               to={`${getProjectBasePath(project.$jazz.id, org.$jazz.id)}/overview`}
-                              className="text-muted-foreground hover:text-foreground hover:underline"
+                              className="inline-flex items-center rounded-sm px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground hover:underline"
                             >
                               {project.name}
                             </Link>

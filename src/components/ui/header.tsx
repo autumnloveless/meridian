@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Menu, Pin, X } from "lucide-react";
-import { Link, NavLink } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserAuth } from "./user";
@@ -15,6 +15,7 @@ const topLevelNavItems = [
 ];
 
 export const Header = () => {
+  const location = useLocation();
   const agent = useAgent();
   const isAuthenticated = useIsAuthenticated();
   const isAnonymous = agent.$type$ === "Account" && !isAuthenticated;
@@ -186,9 +187,22 @@ export const Header = () => {
   };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isOrganizationsMenuOpen, setIsOrganizationsMenuOpen] = useState(false);
+  const [isProjectsMenuOpen, setIsProjectsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsOrganizationsMenuOpen(false);
+    setIsProjectsMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const closeNavMenus = () => {
+    setIsOrganizationsMenuOpen(false);
+    setIsProjectsMenuOpen(false);
   };
 
   return (
@@ -221,28 +235,38 @@ export const Header = () => {
               </NavLink>
             ))}
 
-            <DropdownMenu>
+            <DropdownMenu open={isOrganizationsMenuOpen} onOpenChange={setIsOrganizationsMenuOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-medium text-muted-foreground">
+                <Button variant="ghost" className="gap-1 text-sm font-medium text-muted-foreground">
                   Organizations
-                  <ChevronDown className="size-4" aria-hidden="true" />
+                  <ChevronDown className="size-4 opacity-70" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuContent align="start" className="w-80 p-1.5">
+                <p className="px-2.5 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Your Organizations
+                </p>
                 {organizationEntries.length === 0 ? (
                   <div className="px-2 py-1.5 text-xs text-muted-foreground">No organizations</div>
                 ) : (
                   organizationEntries.map((organization) => (
-                    <div key={organization.id} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent">
-                      <Link to={`/organizations/${organization.id}/overview`} className="min-w-0 flex-1 text-sm">
-                        <span className="group-hover:text-white group-focus:text-white">{organization.name}</span>
+                    <div
+                      key={organization.id}
+                      className="group flex items-center gap-2 rounded-md px-2.5 py-2 transition-colors hover:bg-muted/70 focus-within:bg-muted/70"
+                    >
+                      <Link
+                        to={`/organizations/${organization.id}/overview`}
+                        onClick={closeNavMenus}
+                        className="min-w-0 flex-1 rounded-sm text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <span className="transition-colors group-hover:text-foreground group-focus-within:text-foreground">{organization.name}</span>
                       </Link>
                       <button
                         type="button"
                         className={cn(
-                          "cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground",
+                          "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                           isOrganizationPinned(organization.id) && "text-foreground",
-                          !isOrganizationPinned(organization.id) && "group-hover:text-white group-focus:text-white",
+                          !isOrganizationPinned(organization.id) && "group-hover:text-foreground",
                         )}
                         aria-label={isOrganizationPinned(organization.id) ? `Unpin ${organization.name}` : `Pin ${organization.name}`}
                         onClick={(event) => {
@@ -257,31 +281,47 @@ export const Header = () => {
                   ))
                 )}
 
-                <div className="mt-1 border-t border-border/70 pt-1">
-                  <Link to="/organizations" className="block rounded-sm px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-white">
-                    All Organizations
+                <div className="mt-1 border-t border-border/70 pt-1.5">
+                  <Link
+                    to="/organizations"
+                    onClick={closeNavMenus}
+                    className="block rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  >
+                    View All Organizations
                   </Link>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
+            <DropdownMenu open={isProjectsMenuOpen} onOpenChange={setIsProjectsMenuOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-medium text-muted-foreground">
+                <Button variant="ghost" className="gap-1 text-sm font-medium text-muted-foreground">
                   Projects
-                  <ChevronDown className="size-4" aria-hidden="true" />
+                  <ChevronDown className="size-4 opacity-70" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuContent align="start" className="w-80 p-1.5">
+                <p className="px-2.5 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Quick Access
+                </p>
                 {projectEntries.length === 0 ? (
                   <div className="px-2 py-1.5 text-xs text-muted-foreground">No recent projects</div>
                 ) : (
                   projectEntries.map((project) => (
-                    <div key={project.id} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent">
-                      <Link to={`${getProjectBasePath(project.id, project.orgId)}/overview`} className="min-w-0 flex-1">
+                    <div
+                      key={project.id}
+                      className="group flex items-center gap-2 rounded-md px-2.5 py-2 transition-colors hover:bg-muted/70 focus-within:bg-muted/70"
+                    >
+                      <Link
+                        to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
+                        onClick={closeNavMenus}
+                        className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
                         <div className="flex min-w-0 flex-col">
-                          <span className="group-hover:text-white group-focus:text-white">{project.name}</span>
-                          <span className="text-xs text-muted-foreground group-hover:text-white group-focus:text-white">
+                          <span className="text-sm text-foreground transition-colors group-hover:text-foreground group-focus-within:text-foreground">
+                            {project.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus-within:text-foreground">
                             {project.orgName}
                           </span>
                         </div>
@@ -289,9 +329,9 @@ export const Header = () => {
                       <button
                         type="button"
                         className={cn(
-                          "cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground",
+                          "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                           isProjectPinned(project.id) && "text-foreground",
-                          !isProjectPinned(project.id) && "group-hover:text-white group-focus:text-white"
+                          !isProjectPinned(project.id) && "group-hover:text-foreground",
                         )}
                         aria-label={isProjectPinned(project.id) ? `Unpin ${project.name}` : `Pin ${project.name}`}
                         onClick={(event) => {
