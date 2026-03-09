@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useAccount } from "jazz-tools/react";
+import {
+  DndContext,
+  PointerSensor,
+  type DragEndEvent,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 import { Account } from "@/schema";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
@@ -36,6 +46,77 @@ type CreateTarget = {
   owner: any;
 };
 
+const COLUMN_PREFIX = "home-kanban-col:";
+const TASK_PREFIX = "home-kanban-task:";
+
+const columnDndId = (status: string) => `${COLUMN_PREFIX}${status}`;
+const taskDndId = (taskId: string) => `${TASK_PREFIX}${taskId}`;
+const parseColumnDndId = (value: string) => (value.startsWith(COLUMN_PREFIX) ? value.slice(COLUMN_PREFIX.length) : null);
+const parseTaskDndId = (value: string) => (value.startsWith(TASK_PREFIX) ? value.slice(TASK_PREFIX.length) : null);
+
+const KanbanColumn = ({ status, children }: { status: string; children: React.ReactNode }) => {
+  const droppable = useDroppable({ id: columnDndId(status) });
+
+  return (
+    <div
+      ref={droppable.setNodeRef}
+      className={droppable.isOver ? "rounded-md bg-muted/40" : "rounded-md"}
+    >
+      {children}
+    </div>
+  );
+};
+
+const KanbanTaskCard = ({
+  entry,
+  onSelect,
+}: {
+  entry: TaskEntry;
+  onSelect: (id: string) => void;
+}) => {
+  const draggable = useDraggable({ id: taskDndId(entry.task.$jazz.id) });
+  const style = {
+    transform: CSS.Translate.toString(draggable.transform),
+  };
+
+  return (
+    <button
+      ref={draggable.setNodeRef}
+      style={style}
+      {...draggable.attributes}
+      {...draggable.listeners}
+      key={entry.task.$jazz.id}
+      type="button"
+      className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
+      onClick={() => onSelect(entry.task.$jazz.id)}
+    >
+      <p className="text-sm font-medium">{entry.task.summary}</p>
+      {entry.taskHref ? (
+        <Link
+          to={entry.taskHref}
+          className="text-[11px] text-sky-700 hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {getTaskDisplayId(entry.task, entry.keyPrefix)}
+        </Link>
+      ) : (
+        <p className="text-[11px] text-sky-700">{getTaskDisplayId(entry.task, entry.keyPrefix)}</p>
+      )}
+      {entry.projectHref ? (
+        <Link
+          to={entry.projectHref}
+          className="text-[11px] text-muted-foreground hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {entry.projectLabel}
+        </Link>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">{entry.projectLabel}</p>
+      )}
+    </button>
+  );
+};
+
 export const OverviewPage = () => {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
   const [taskView, setTaskView] = useState<"list" | "kanban">("list");
@@ -43,6 +124,7 @@ export const OverviewPage = () => {
   const [taskSummary, setTaskSummary] = useState("");
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const account = useAccount(Account, {
     resolve: {
@@ -241,6 +323,41 @@ export const OverviewPage = () => {
 
   const effectiveTaskView = isDesktop ? taskView : "list";
 
+  const handleKanbanDragEnd = (event: DragEndEvent) => {
+    const activeTaskId = parseTaskDndId(String(event.active.id));
+    const overRawId = event.over ? String(event.over.id) : null;
+    if (!activeTaskId || !overRawId) return;
+
+    const activeEntry = assignedActiveTasks.find((entry) => entry.task.$jazz.id === activeTaskId);
+    if (!activeEntry) return;
+
+    const overTaskId = parseTaskDndId(overRawId);
+
+    const destinationStatus = (() => {
+      const columnStatus = parseColumnDndId(overRawId);
+      if (columnStatus) return columnStatus;
+
+      if (!overTaskId) return null;
+      const overEntry = assignedActiveTasks.find((entry) => entry.task.$jazz.id === overTaskId);
+      return overEntry ? overEntry.task.status : null;
+    })();
+
+    if (!destinationStatus || activeEntry.task.status === destinationStatus) return;
+    activeEntry.task.$jazz.set("status", destinationStatus);
+
+    const destinationEntries = columns[destinationStatus]
+      .filter((entry) => entry.task.$jazz.id !== activeEntry.task.$jazz.id);
+    const insertIndex = overTaskId
+      ? Math.max(0, destinationEntries.findIndex((entry) => entry.task.$jazz.id === overTaskId))
+      : destinationEntries.length;
+
+    const normalizedIndex = overTaskId && insertIndex >= 0 ? insertIndex : destinationEntries.length;
+    destinationEntries.splice(normalizedIndex, 0, activeEntry);
+    destinationEntries.forEach((entry, index) => {
+      entry.task.$jazz.set("order", index + 1);
+    });
+  };
+
   const createTask = () => {
     const target = createTargets.find((entry) => entry.id === selectedTargetId);
     if (!target || !account.$isLoaded || !account.profile.$isLoaded) return;
@@ -378,56 +495,31 @@ export const OverviewPage = () => {
               </table>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="flex min-w-max gap-3">
-                {boardColumns.map((column) => (
-                  <div key={column.status} className="w-[18rem] rounded-md border bg-muted/20">
-                    <div className="flex items-center justify-between border-b px-3 py-2">
-                      <p className="text-sm font-semibold">{column.title}</p>
-                      <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
-                    </div>
-                    <div className="space-y-2 p-2">
-                      {columns[column.status].length === 0 ? (
-                        <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
-                      ) : (
-                        columns[column.status].map((entry) => (
-                          <button
-                            key={entry.task.$jazz.id}
-                            type="button"
-                            className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
-                            onClick={() => setSelectedTaskId(entry.task.$jazz.id)}
-                          >
-                            <p className="text-sm font-medium">{entry.task.summary}</p>
-                            {entry.taskHref ? (
-                              <Link
-                                to={entry.taskHref}
-                                className="text-[11px] text-sky-700 hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {getTaskDisplayId(entry.task, entry.keyPrefix)}
-                              </Link>
-                            ) : (
-                              <p className="text-[11px] text-sky-700">{getTaskDisplayId(entry.task, entry.keyPrefix)}</p>
-                            )}
-                            {entry.projectHref ? (
-                              <Link
-                                to={entry.projectHref}
-                                className="text-[11px] text-muted-foreground hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {entry.projectLabel}
-                              </Link>
-                            ) : (
-                              <p className="text-[11px] text-muted-foreground">{entry.projectLabel}</p>
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ))}
+            <DndContext sensors={sensors} onDragEnd={handleKanbanDragEnd}>
+              <div className="overflow-x-auto">
+                <div className="flex min-w-max gap-3">
+                  {boardColumns.map((column) => (
+                    <KanbanColumn key={column.status} status={column.status}>
+                      <div className="w-[18rem] rounded-md border bg-muted/20">
+                        <div className="flex items-center justify-between border-b px-3 py-2">
+                          <p className="text-sm font-semibold">{column.title}</p>
+                          <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
+                        </div>
+                        <div className="space-y-2 p-2">
+                          {columns[column.status].length === 0 ? (
+                            <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
+                          ) : (
+                            columns[column.status].map((entry) => (
+                              <KanbanTaskCard key={entry.task.$jazz.id} entry={entry} onSelect={setSelectedTaskId} />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </KanbanColumn>
+                  ))}
+                </div>
               </div>
-            </div>
+            </DndContext>
           )}
         </CardContent>
       </Card>

@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  rectSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -540,7 +540,7 @@ export const ProjectTasksBoardPage = () => {
                   </div>
                 </CardHeader>
 
-                <SortableContext items={taskIds} strategy={rectSortingStrategy}>
+                <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
                   <ColumnDropZone status={column.status}>
                     <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                       {tasks.length === 0 ? (

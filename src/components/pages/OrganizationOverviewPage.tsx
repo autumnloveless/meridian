@@ -2,6 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { co } from "jazz-tools";
 import { useAccount, useCoState } from "jazz-tools/react";
+import {
+  DndContext,
+  PointerSensor,
+  type DragEndEvent,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 import { Account, Organization, Task as TaskSchema } from "@/schema";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
@@ -21,6 +31,64 @@ const boardColumns = [
   { status: "Cancelled", title: "Cancelled", tone: "bg-rose-100 text-rose-800" },
 ] as const;
 
+const COLUMN_PREFIX = "org-overview-col:";
+const TASK_PREFIX = "org-overview-task:";
+
+const columnDndId = (status: string) => `${COLUMN_PREFIX}${status}`;
+const taskDndId = (taskId: string) => `${TASK_PREFIX}${taskId}`;
+const parseColumnDndId = (value: string) => (value.startsWith(COLUMN_PREFIX) ? value.slice(COLUMN_PREFIX.length) : null);
+const parseTaskDndId = (value: string) => (value.startsWith(TASK_PREFIX) ? value.slice(TASK_PREFIX.length) : null);
+const isBoardStatus = (status: string): status is LoadedTask["status"] =>
+  boardColumns.some((column) => column.status === status);
+
+const KanbanColumn = ({ status, children }: { status: string; children: React.ReactNode }) => {
+  const droppable = useDroppable({ id: columnDndId(status) });
+
+  return (
+    <div ref={droppable.setNodeRef} className={droppable.isOver ? "rounded-md bg-muted/40" : "rounded-md"}>
+      {children}
+    </div>
+  );
+};
+
+const KanbanTaskCard = ({
+  entry,
+  orgId,
+  keyPrefix,
+  onSelect,
+}: {
+  entry: { task: LoadedTask };
+  orgId: string;
+  keyPrefix: string;
+  onSelect: (id: string) => void;
+}) => {
+  const draggable = useDraggable({ id: taskDndId(entry.task.$jazz.id) });
+  const style = {
+    transform: CSS.Translate.toString(draggable.transform),
+  };
+
+  return (
+    <button
+      ref={draggable.setNodeRef}
+      style={style}
+      {...draggable.attributes}
+      {...draggable.listeners}
+      type="button"
+      className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
+      onClick={() => onSelect(entry.task.$jazz.id)}
+    >
+      <p className="text-sm font-medium">{entry.task.summary}</p>
+      <Link
+        to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+        className="text-[11px] text-sky-700 hover:underline"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {getTaskDisplayId(entry.task, keyPrefix)}
+      </Link>
+    </button>
+  );
+};
+
 export const OrganizationOverviewPage = () => {
   const { orgId } = useParams();
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
@@ -28,6 +96,7 @@ export const OrganizationOverviewPage = () => {
   const [taskType, setTaskType] = useState<"Task" | "Bug">("Task");
   const [taskSummary, setTaskSummary] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const profile = useAccount(Account, {
     resolve: { profile: true },
@@ -129,6 +198,41 @@ export const OrganizationOverviewPage = () => {
   }, [activeTasks]);
 
   const effectiveTaskView = isDesktop ? taskView : "list";
+
+  const handleKanbanDragEnd = (event: DragEndEvent) => {
+    const activeTaskId = parseTaskDndId(String(event.active.id));
+    const overRawId = event.over ? String(event.over.id) : null;
+    if (!activeTaskId || !overRawId) return;
+
+    const activeEntry = activeTasks.find((entry) => entry.task.$jazz.id === activeTaskId);
+    if (!activeEntry) return;
+
+    const overTaskId = parseTaskDndId(overRawId);
+
+    const destinationStatus = (() => {
+      const columnStatus = parseColumnDndId(overRawId);
+      if (columnStatus) return columnStatus;
+
+      if (!overTaskId) return null;
+      const overEntry = activeTasks.find((entry) => entry.task.$jazz.id === overTaskId);
+      return overEntry ? overEntry.task.status : null;
+    })();
+
+    if (!destinationStatus || !isBoardStatus(destinationStatus) || activeEntry.task.status === destinationStatus) return;
+    activeEntry.task.$jazz.set("status", destinationStatus);
+
+    const destinationEntries = columns[destinationStatus]
+      .filter((entry) => entry.task.$jazz.id !== activeEntry.task.$jazz.id);
+    const insertIndex = overTaskId
+      ? Math.max(0, destinationEntries.findIndex((entry) => entry.task.$jazz.id === overTaskId))
+      : destinationEntries.length;
+
+    const normalizedIndex = overTaskId && insertIndex >= 0 ? insertIndex : destinationEntries.length;
+    destinationEntries.splice(normalizedIndex, 0, activeEntry);
+    destinationEntries.forEach((entry, index) => {
+      entry.task.$jazz.set("order", index + 1);
+    });
+  };
 
   if (!orgId) return <div className="text-sm text-red-700">Invalid organization URL.</div>;
   if (!organization.$isLoaded) return <div className="text-sm text-muted-foreground">Loading organization summary...</div>;
@@ -260,41 +364,37 @@ export const OrganizationOverviewPage = () => {
             </table>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max gap-3">
-              {boardColumns.map((column) => (
-                <div key={column.status} className="w-[18rem] rounded-md border bg-muted/20">
-                  <div className="flex items-center justify-between border-b px-3 py-2">
-                    <p className="text-sm font-semibold">{column.title}</p>
-                    <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
-                  </div>
-                  <div className="space-y-2 p-2">
-                    {columns[column.status].length === 0 ? (
-                      <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
-                    ) : (
-                      columns[column.status].map((entry) => (
-                        <button
-                          key={entry.task.$jazz.id}
-                          type="button"
-                          className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
-                          onClick={() => setSelectedTaskId(entry.task.$jazz.id)}
-                        >
-                          <p className="text-sm font-medium">{entry.task.summary}</p>
-                          <Link
-                            to={`/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
-                            className="text-[11px] text-sky-700 hover:underline"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            {getTaskDisplayId(entry.task, organization.project_key)}
-                          </Link>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ))}
+          <DndContext sensors={sensors} onDragEnd={handleKanbanDragEnd}>
+            <div className="overflow-x-auto">
+              <div className="flex min-w-max gap-3">
+                {boardColumns.map((column) => (
+                  <KanbanColumn key={column.status} status={column.status}>
+                    <div className="w-[18rem] rounded-md border bg-muted/20">
+                      <div className="flex items-center justify-between border-b px-3 py-2">
+                        <p className="text-sm font-semibold">{column.title}</p>
+                        <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
+                      </div>
+                      <div className="space-y-2 p-2">
+                        {columns[column.status].length === 0 ? (
+                          <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
+                        ) : (
+                          columns[column.status].map((entry) => (
+                            <KanbanTaskCard
+                              key={entry.task.$jazz.id}
+                              entry={entry}
+                              orgId={orgId}
+                              keyPrefix={organization.project_key}
+                              onSelect={setSelectedTaskId}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </KanbanColumn>
+                ))}
+              </div>
             </div>
-          </div>
+          </DndContext>
         )}
       </section>
 

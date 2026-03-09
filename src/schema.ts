@@ -24,7 +24,7 @@ export const Test = co.map({
   details: co.richText(),
   version: z.int(),
   is_folder: z.boolean(),
-  get children(): co.Optional<co.List<typeof Requirement>> { return co.optional(co.list(Requirement)) }
+  get children(): co.Optional<co.List<typeof Test>> { return co.optional(co.list(Test)) }
 })
 export type Test = co.loaded<typeof Test>
 
