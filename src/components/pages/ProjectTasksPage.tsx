@@ -1,3 +1,5 @@
+import { Outlet } from "react-router";
+
 export const ProjectTasksPage = () => {
-  return <div>ProjectTasksPage</div>;
+  return <Outlet />;
 };

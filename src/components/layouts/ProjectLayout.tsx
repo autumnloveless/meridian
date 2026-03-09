@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useParams } from "react-router";
+import { NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
 
 import { Project } from "@/schema";
@@ -15,9 +15,20 @@ const projectNavItems = [
   { to: "docs", label: "Docs" },
 ] as const;
 
+const taskSubNavItems = [
+  { to: "tasks/list", label: "List" },
+  { to: "tasks/board", label: "Board" },
+  { to: "tasks/archive", label: "Archive" },
+] as const;
+
 export const ProjectLayout = () => {
   const { projectId } = useParams();
+  const location = useLocation();
   const project = useCoState(Project, projectId);
+
+  const isInTasksSection = projectId
+    ? location.pathname.startsWith(`/projects/${projectId}/tasks`)
+    : false;
 
   const projectTitle = project.$isLoaded
     ? project.name
@@ -39,19 +50,40 @@ export const ProjectLayout = () => {
         <CardContent className="flex h-full flex-col gap-2">
           <nav aria-label="Project navigation" className="flex flex-col gap-1">
             {projectNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    buttonVariants({ variant: "ghost" }),
-                    "w-full justify-start",
-                    isActive ? "bg-muted text-foreground" : "text-muted-foreground"
-                  )
-                }
-              >
-                {item.label}
-              </NavLink>
+              <div key={item.to} className="flex flex-col gap-1">
+                <NavLink
+                  to={item.to}
+                  className={({ isActive }) =>
+                    cn(
+                      buttonVariants({ variant: "ghost" }),
+                      "w-full justify-start",
+                      isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+                    )
+                  }
+                >
+                  {item.label}
+                </NavLink>
+
+                {item.to === "tasks" && isInTasksSection && (
+                  <div className="ml-4 flex flex-col gap-1 border-l pl-2">
+                    {taskSubNavItems.map((subItem) => (
+                      <NavLink
+                        key={subItem.to}
+                        to={subItem.to}
+                        className={({ isActive }) =>
+                          cn(
+                            buttonVariants({ variant: "ghost" }),
+                            "h-8 w-full justify-start px-2 text-xs",
+                            isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+                          )
+                        }
+                      >
+                        {subItem.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
 

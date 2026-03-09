@@ -40,7 +40,7 @@ export const Router = () => {
                         <Route path="tags" element={<ProjectTagsPage />} />
                         <Route path="people" element={<ProjectPeoplePage />} />
                         <Route path="tasks" element={<ProjectTasksPage />}>
-                            <Route index element={<ProjectTasksListPage />} />
+                            <Route index element={<Navigate to="list" replace />} />
                             <Route path="list" element={<ProjectTasksListPage />} />
                             <Route path="board" element={<ProjectTasksBoardPage />} />
                             <Route path="archive" element={<ProjectTasksArchivePage />} />
