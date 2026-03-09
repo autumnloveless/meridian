@@ -40,7 +40,7 @@ export const ProjectDocsPage = () => {
   const { projectId, orgId } = useParams();
 
   const projectBasePath = useMemo(() => {
-    if (!projectId) return "";
+    if (!projectId || !orgId) return "";
     return getProjectBasePath(projectId, orgId);
   }, [orgId, projectId]);
 
@@ -66,6 +66,10 @@ export const ProjectDocsPage = () => {
     if (!project.$isLoaded || !firstDocumentId || !projectId) return;
     navigate(`${projectBasePath}/docs/${firstDocumentId}`, { replace: true });
   }, [firstDocumentId, navigate, project, projectBasePath, projectId]);
+
+  if (!orgId || !projectId) {
+    return <div className="text-sm text-red-700">Invalid project URL.</div>;
+  }
 
   if (!project.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading docs...</div>;

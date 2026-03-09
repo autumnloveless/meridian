@@ -1,7 +1,7 @@
-export const getProjectBasePath = (projectId: string, organizationId?: string | null) => {
-  if (organizationId) {
-    return `/organizations/${organizationId}/projects/${projectId}`;
-  }
+export const getOrganizationBasePath = (organizationId: string) => {
+  return `/organizations/${organizationId}`;
+};
 
-  return `/projects/${projectId}`;
+export const getProjectBasePath = (projectId: string, organizationId: string) => {
+  return `${getOrganizationBasePath(organizationId)}/projects/${projectId}`;
 };

@@ -1,21 +1,189 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, Pin, X } from "lucide-react";
 import { Link, NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserAuth } from "./user";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAccount } from "jazz-tools/react";
 import { useAgent, useIsAuthenticated } from "jazz-tools/react";
+import { Account } from "@/schema";
+import { getProjectBasePath } from "@/lib/projectPaths";
 
 const topLevelNavItems = [
   { label: "Overview", to: "/overview" },
-  { label: "Projects", to: "/projects" },
-  { label: "People", to: "/people" },
 ];
 
 export const Header = () => {
   const agent = useAgent();
   const isAuthenticated = useIsAuthenticated();
   const isAnonymous = agent.$type$ === "Account" && !isAuthenticated;
+  const account = useAccount(Account, {
+    resolve: {
+      root: {
+        personal_organization: { projects: { $each: true } },
+        organizations: { $each: { projects: { $each: true } } },
+        pinned_organizations: { $each: true },
+        pinned_projects: { $each: true },
+        recent_projects: { $each: true },
+      },
+    },
+  });
+
+  const organizationEntries = (() => {
+    if (!account.$isLoaded) return [] as Array<{ id: string; name: string }>;
+
+    const entries = new Map<string, { id: string; name: string }>();
+
+    if (account.root.personal_organization) {
+      const personalOrg = account.root.personal_organization;
+      entries.set(personalOrg.$jazz.id, { id: personalOrg.$jazz.id, name: personalOrg.name });
+    }
+
+    account.root.organizations.forEach((organization) => {
+      entries.set(organization.$jazz.id, { id: organization.$jazz.id, name: organization.name });
+    });
+
+    const allOrganizations = [...entries.values()];
+    const pinnedOrganizationIds = new Set(account.root.pinned_organizations.map((organization) => organization.$jazz.id));
+
+    const pinnedOrganizations = allOrganizations
+      .filter((organization) => pinnedOrganizationIds.has(organization.id))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    const unpinnedOrganizations = allOrganizations
+      .filter((organization) => !pinnedOrganizationIds.has(organization.id))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    return [...pinnedOrganizations, ...unpinnedOrganizations].slice(0, 5);
+  })();
+
+  const projectEntries = (() => {
+    if (!account.$isLoaded) return [] as Array<{ id: string; name: string; orgId: string; orgName: string }>;
+
+    const projectOrgMap = new Map<string, { id: string; name: string; orgId: string; orgName: string }>();
+    const recencyPriority = new Map<string, number>();
+
+    account.root.recent_projects.forEach((project, index) => {
+      recencyPriority.set(project.$jazz.id, index);
+    });
+
+    if (account.root.personal_organization) {
+      const org = account.root.personal_organization;
+      org.projects.forEach((project) => {
+        projectOrgMap.set(project.$jazz.id, {
+          id: project.$jazz.id,
+          name: project.name,
+          orgId: org.$jazz.id,
+          orgName: org.name,
+        });
+      });
+    }
+
+    account.root.organizations.forEach((org) => {
+      org.projects.forEach((project) => {
+        projectOrgMap.set(project.$jazz.id, {
+          id: project.$jazz.id,
+          name: project.name,
+          orgId: org.$jazz.id,
+          orgName: org.name,
+        });
+      });
+    });
+
+    const allProjects = [...projectOrgMap.values()];
+    const pinnedProjectIds = new Set(account.root.pinned_projects.map((project) => project.$jazz.id));
+
+    const pinnedProjects = allProjects
+      .filter((project) => pinnedProjectIds.has(project.id))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    const unpinnedProjects = allProjects
+      .filter((project) => !pinnedProjectIds.has(project.id))
+      .sort((left, right) => {
+        const leftRecent = recencyPriority.has(left.id);
+        const rightRecent = recencyPriority.has(right.id);
+        if (leftRecent !== rightRecent) return leftRecent ? -1 : 1;
+
+        if (leftRecent && rightRecent) {
+          return (recencyPriority.get(left.id) ?? 0) - (recencyPriority.get(right.id) ?? 0);
+        }
+
+        return left.name.localeCompare(right.name);
+      });
+
+    return [...pinnedProjects, ...unpinnedProjects].slice(0, 5);
+  })();
+
+  const isProjectPinned = (projectId: string) => {
+    if (!account.$isLoaded) return false;
+    return account.root.pinned_projects.some((project) => project.$jazz.id === projectId);
+  };
+
+  const isOrganizationPinned = (organizationId: string) => {
+    if (!account.$isLoaded) return false;
+    return account.root.pinned_organizations.some((organization) => organization.$jazz.id === organizationId);
+  };
+
+  const findOrganizationById = (organizationId: string) => {
+    if (!account.$isLoaded) return null;
+
+    if (account.root.personal_organization?.$jazz.id === organizationId) {
+      return account.root.personal_organization;
+    }
+
+    return account.root.organizations.find((organization) => organization.$jazz.id === organizationId) ?? null;
+  };
+
+  const toggleOrganizationPin = (organizationId: string) => {
+    if (!account.$isLoaded) return;
+
+    if (isOrganizationPinned(organizationId)) {
+      account.root.pinned_organizations.$jazz.remove((organization) => organization.$jazz.id === organizationId);
+      return;
+    }
+
+    const organization = findOrganizationById(organizationId);
+    if (!organization) return;
+
+    account.root.pinned_organizations.$jazz.push(organization);
+  };
+
+  const findProjectById = (projectId: string) => {
+    if (!account.$isLoaded) return null;
+
+    if (account.root.personal_organization) {
+      const personalProject = account.root.personal_organization.projects.find((project) => project.$jazz.id === projectId);
+      if (personalProject && personalProject.$isLoaded) return personalProject;
+    }
+
+    let matchedProject: any = null;
+    account.root.organizations.forEach((organization) => {
+      if (matchedProject) return;
+      const orgProject = organization.projects.find((project) => project.$jazz.id === projectId);
+      if (orgProject && orgProject.$isLoaded) {
+        matchedProject = orgProject;
+      }
+    });
+
+    if (matchedProject) return matchedProject;
+
+    return null;
+  };
+
+  const toggleProjectPin = (projectId: string) => {
+    if (!account.$isLoaded) return;
+
+    if (isProjectPinned(projectId)) {
+      account.root.pinned_projects.$jazz.remove((project) => project.$jazz.id === projectId);
+      return;
+    }
+
+    const project = findProjectById(projectId);
+    if (!project) return;
+
+    account.root.pinned_projects.$jazz.push(project);
+  };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -52,6 +220,93 @@ export const Header = () => {
                 {item.label}
               </NavLink>
             ))}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="text-sm font-medium text-muted-foreground">
+                  Organizations
+                  <ChevronDown className="size-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-72">
+                {organizationEntries.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No organizations</div>
+                ) : (
+                  organizationEntries.map((organization) => (
+                    <div key={organization.id} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent">
+                      <Link to={`/organizations/${organization.id}/overview`} className="min-w-0 flex-1 text-sm">
+                        <span className="group-hover:text-white group-focus:text-white">{organization.name}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        className={cn(
+                          "cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground",
+                          isOrganizationPinned(organization.id) && "text-foreground",
+                          !isOrganizationPinned(organization.id) && "group-hover:text-white group-focus:text-white",
+                        )}
+                        aria-label={isOrganizationPinned(organization.id) ? `Unpin ${organization.name}` : `Pin ${organization.name}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleOrganizationPin(organization.id);
+                        }}
+                      >
+                        <Pin className={cn("size-3.5", isOrganizationPinned(organization.id) && "fill-current")} />
+                      </button>
+                    </div>
+                  ))
+                )}
+
+                <div className="mt-1 border-t border-border/70 pt-1">
+                  <Link to="/organizations" className="block rounded-sm px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-white">
+                    All Organizations
+                  </Link>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="text-sm font-medium text-muted-foreground">
+                  Projects
+                  <ChevronDown className="size-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-72">
+                {projectEntries.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No recent projects</div>
+                ) : (
+                  projectEntries.map((project) => (
+                    <div key={project.id} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent">
+                      <Link to={`${getProjectBasePath(project.id, project.orgId)}/overview`} className="min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-col">
+                          <span className="group-hover:text-white group-focus:text-white">{project.name}</span>
+                          <span className="text-xs text-muted-foreground group-hover:text-white group-focus:text-white">
+                            {project.orgName}
+                          </span>
+                        </div>
+                      </Link>
+                      <button
+                        type="button"
+                        className={cn(
+                          "cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground",
+                          isProjectPinned(project.id) && "text-foreground",
+                          !isProjectPinned(project.id) && "group-hover:text-white group-focus:text-white"
+                        )}
+                        aria-label={isProjectPinned(project.id) ? `Unpin ${project.name}` : `Pin ${project.name}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleProjectPin(project.id);
+                        }}
+                      >
+                        <Pin className={cn("size-3.5", isProjectPinned(project.id) && "fill-current")} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
 
@@ -98,6 +353,29 @@ export const Header = () => {
                 {item.label}
               </NavLink>
             ))}
+
+            {projectEntries.length > 0 ? (
+              <div className="rounded-md border border-border/70 px-3 py-2">
+                <p className="pb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Recent Projects</p>
+                <div className="flex flex-col gap-1">
+                  {projectEntries.map((project) => (
+                    <Link
+                      key={project.id}
+                      to={`${getProjectBasePath(project.id, project.orgId)}/overview`}
+                      onClick={closeMobileMenu}
+                      className="group rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <div className="flex flex-col">
+                        <span>{project.name}</span>
+                        <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus:text-foreground">
+                          {project.orgName}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </nav>
         </div>
       )}

@@ -1,10 +1,14 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { BaseLayout } from "./components/layouts/BaseLayout";
 import { ProjectLayout } from "./components/layouts/ProjectLayout";
+import { OrganizationLayout } from "./components/layouts/OrganizationLayout";
 import { OverviewPage } from "./components/pages/OverviewPage";
-import { ProjectsPage } from "./components/pages/ProjectsPage";
+import { OrganizationsPage } from "./components/pages/OrganizationsPage";
+import { OrganizationOverviewPage } from "./components/pages/OrganizationOverviewPage";
+import { OrganizationProjectsPage } from "./components/pages/OrganizationProjectsPage";
+import { OrganizationPeoplePage } from "./components/pages/OrganizationPeoplePage";
+import { OrganizationDocsPage } from "./components/pages/OrganizationDocsPage";
 import { TagsPage } from "./components/pages/TagsPage";
-import { PeoplePage } from "./components/pages/PeoplePage";
 import { ProjectOverviewPage } from "./components/pages/ProjectOverviewPage";
 import { ProjectTagsPage } from "./components/pages/ProjectTagsPage";
 import { ProjectPeoplePage } from "./components/pages/ProjectPeoplePage";
@@ -31,30 +35,15 @@ export const Router = () => {
                 <Route element={<BaseLayout />}>
                     <Route path="/" element={<Navigate to="/overview" replace />} />
                     <Route path="/overview" element={<OverviewPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/organizations" element={<OrganizationsPage />} />
                     <Route path="/tags" element={<TagsPage />} />
-                    <Route path="/people" element={<PeoplePage />} />
 
-                    <Route path="/projects/:projectId" element={<ProjectLayout />}>
-                        <Route path="overview" element={<ProjectOverviewPage />} />
-                        <Route path="tags" element={<ProjectTagsPage />} />
-                        <Route path="people" element={<ProjectPeoplePage />} />
-                        <Route path="tasks" element={<ProjectTasksPage />}>
-                            <Route index element={<Navigate to="list" replace />} />
-                            <Route path="list" element={<ProjectTasksListPage />} />
-                            <Route path="board" element={<ProjectTasksBoardPage />} />
-                            <Route path="archive" element={<ProjectTasksArchivePage />} />
-                        </Route>
-                        <Route path="tasks/:taskId" element={<ProjectTaskDetailsPage />} />
-                        <Route path="docs" element={<ProjectDocsPage />} />
-                        <Route path="docs/:docId" element={<ProjectDocDetailsPage />} />
-                        <Route path="tests" element={<ProjectTestsPage />} />
-                        <Route path="tests/:testId" element={<ProjectTestDetailsPage />} />
-                        <Route path="requirements" element={<ProjectRequirementsPage />} />
-                        <Route path="requirements/:requirementId" element={<ProjectRequirementDetailsPage />} />
-                        <Route path="test-results" element={<ProjectTestResultsPage />} />
-                        <Route path="test-results/:testResultId" element={<ProjectTestResultDetailsPage />} />
-                        <Route path="settings" element={<ProjectSettingsPage />} />
+                    <Route path="/organizations/:orgId" element={<OrganizationLayout />}>
+                        <Route index element={<Navigate to="overview" replace />} />
+                        <Route path="overview" element={<OrganizationOverviewPage />} />
+                        <Route path="projects" element={<OrganizationProjectsPage />} />
+                        <Route path="people" element={<OrganizationPeoplePage />} />
+                        <Route path="docs" element={<OrganizationDocsPage />} />
                     </Route>
 
                     <Route path="/organizations/:orgId/projects/:projectId" element={<ProjectLayout />}>

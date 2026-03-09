@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { co } from "jazz-tools";
-import { useCoState } from "jazz-tools/react";
+import { useAccount, useCoState } from "jazz-tools/react";
 
-import { Document, Organization, Project } from "@/schema";
+import { Account, Document, Organization, Project } from "@/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -39,11 +39,29 @@ export const ProjectLayout = () => {
   });
 
   const organization = useCoState(Organization, orgId);
+  const account = useAccount(Account, {
+    resolve: {
+      root: {
+        recent_projects: { $each: true },
+      },
+    },
+  });
 
   const projectBasePath = useMemo(() => {
-    if (!projectId) return "";
+    if (!projectId || !orgId) return "";
     return getProjectBasePath(projectId, orgId);
   }, [orgId, projectId]);
+
+  useEffect(() => {
+    if (!account.$isLoaded || !project.$isLoaded || !projectId) return;
+
+    const recentProjects = account.root.recent_projects;
+    if (recentProjects[0]?.$jazz.id === projectId) return;
+
+    recentProjects.$jazz.remove((item) => item.$jazz.id === projectId);
+    recentProjects.$jazz.unshift(project);
+    recentProjects.$jazz.retain((_, index) => index < 25);
+  }, [account, project, projectId]);
 
   const isInTasksSection = projectId
     ? location.pathname.startsWith(`${projectBasePath}/tasks`)
@@ -212,6 +230,10 @@ export const ProjectLayout = () => {
 
     setDeleteTarget(null);
   };
+
+  if (!orgId || !projectId) {
+    return <div className="p-4 text-sm text-red-700">Invalid project URL.</div>;
+  }
 
   return (
     <section className="grid min-h-[calc(100vh-4.5rem)] grid-cols-1 gap-4 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
