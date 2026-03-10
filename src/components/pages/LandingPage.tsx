@@ -31,8 +31,8 @@ export const LandingPage = () => {
   return (
     <div className="app-atmosphere min-h-dvh bg-background text-foreground">
       <Header />
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-14 pt-8 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8 lg:pb-20 lg:pt-16">
-        <section className="hero-gradient relative overflow-hidden rounded-3xl border border-primary/25 px-6 py-10 shadow-xl shadow-primary/15 sm:px-10 sm:py-14">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-12 pt-6 sm:gap-10 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-16">
+        <section className="hero-gradient relative overflow-hidden rounded-2xl border border-primary/25 px-5 py-8 shadow-xl shadow-primary/15 sm:rounded-3xl sm:px-10 sm:py-14">
           <div className="absolute -right-20 -top-20 size-52 rounded-full bg-white/30 blur-3xl" aria-hidden="true" />
           <div className="absolute -bottom-24 -left-20 size-64 rounded-full bg-primary/35 blur-3xl" aria-hidden="true" />
 
@@ -53,14 +53,14 @@ export const LandingPage = () => {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button asChild size="lg" className="w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                 <Link to="/overview">
                   Enter the workspace
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-foreground/25 bg-background/70">
+              <Button asChild size="lg" variant="outline" className="w-full border-foreground/25 bg-background/70 sm:w-auto">
                 <Link to="/organizations">Explore organizations</Link>
               </Button>
             </div>

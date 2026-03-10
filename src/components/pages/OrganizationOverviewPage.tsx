@@ -17,6 +17,7 @@ import { Account, Organization, Task as TaskSchema } from "@/schema";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 import {
@@ -49,7 +50,7 @@ const KanbanColumn = ({ status, children }: { status: string; children: React.Re
   const droppable = useDroppable({ id: columnDndId(status) });
 
   return (
-    <div ref={droppable.setNodeRef} className={droppable.isOver ? "rounded-md bg-muted/40" : "rounded-md"}>
+    <div ref={droppable.setNodeRef} className={droppable.isOver ? "shrink-0 rounded-md bg-muted/40 md:shrink" : "shrink-0 rounded-md md:shrink"}>
       {children}
     </div>
   );
@@ -366,8 +367,59 @@ export const OrganizationOverviewPage = () => {
         </div>
 
         {effectiveTaskView === "list" ? (
-          <div className="overflow-hidden rounded-md border">
-            <table className="w-full table-fixed border-collapse text-sm">
+          <>
+            <div className="space-y-2 md:hidden">
+              {activeTasks.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border/80 bg-background/70 px-3 py-4 text-xs text-muted-foreground">
+                  No active tasks yet.
+                </div>
+              ) : (
+                activeTasks.map((entry) => (
+                  <button
+                    key={entry.task.$jazz.id}
+                    type="button"
+                    className="w-full rounded-md border border-border/70 bg-card px-3 py-2 text-left"
+                    onClick={() => setSelectedTaskId(entry.task.$jazz.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="line-clamp-2 text-sm font-medium text-foreground">{entry.task.summary}</p>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">{entry.task.status}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs">
+                      <Link
+                        to={entry.projectId
+                          ? `/organizations/${orgId}/projects/${entry.projectId}/tasks/${entry.task.$jazz.id}`
+                          : `/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
+                        className="font-semibold text-primary hover:underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {getTaskDisplayId(entry.task, entry.taskKeyPrefix)}
+                      </Link>
+                      <span className="uppercase text-muted-foreground">{entry.task.type}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {entry.projectId && entry.projectName ? (
+                        <>
+                          <Link
+                            to={`/organizations/${orgId}/projects/${entry.projectId}/tasks/list`}
+                            className="font-medium text-primary hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {entry.projectName}
+                          </Link>{" "}
+                          - {entry.bucketName}
+                        </>
+                      ) : (
+                        <>Organization - {entry.bucketName}</>
+                      )}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-hidden rounded-md border md:block">
+              <table className="w-full table-fixed border-collapse text-sm">
               <thead className="bg-muted/70 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="w-28 px-2 py-1 text-left">Key</th>
@@ -418,22 +470,26 @@ export const OrganizationOverviewPage = () => {
                   ))
                 )}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          </>
         ) : (
           <DndContext sensors={sensors} onDragEnd={handleKanbanDragEnd}>
-            <div className="overflow-x-auto">
-              <div className="flex min-w-max gap-3">
+            <div className="overflow-x-auto pb-2">
+              <div className="flex min-w-max snap-x snap-mandatory gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
                 {boardColumns.map((column) => (
                   <KanbanColumn key={column.status} status={column.status}>
-                    <div className="surface-feature w-[18rem] rounded-md border border-border/70 bg-card/85">
-                      <div className="flex items-center justify-between border-b px-3 py-2">
-                        <p className="text-sm font-semibold">{column.title}</p>
-                        <Badge className={`h-5 px-1.5 text-xs ${column.tone}`}>{columns[column.status].length}</Badge>
-                      </div>
-                      <div className="space-y-2 p-2">
+                    <Card className="h-[calc(100dvh-17rem)] w-[88vw] min-w-[18rem] shrink-0 snap-start border border-border/70 bg-card/85 py-0 sm:w-[80vw] md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0 md:shrink">
+                      <CardHeader className="gap-2 border-b border-border/70 px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-sm font-semibold text-foreground">{column.title}</CardTitle>
+                          <Badge className={`h-5 px-1.5 text-xs ${column.tone}`}>{columns[column.status].length}</Badge>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2 pt-2">
                         {columns[column.status].length === 0 ? (
-                          <div className="rounded border border-dashed px-2 py-3 text-xs text-muted-foreground">No tasks</div>
+                          <div className="rounded border border-dashed border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">No tasks</div>
                         ) : (
                           columns[column.status].map((entry) => (
                             <KanbanTaskCard
@@ -444,8 +500,8 @@ export const OrganizationOverviewPage = () => {
                             />
                           ))
                         )}
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   </KanbanColumn>
                 ))}
               </div>

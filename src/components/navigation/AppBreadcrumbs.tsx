@@ -238,7 +238,7 @@ export const AppBreadcrumbs = () => {
           const isLast = index === crumbs.length - 1;
 
           return (
-            <Fragment key={crumb.to}>
+            <Fragment key={`desktop-${crumb.to}-${index}`}>
               <BreadcrumbItem className="min-w-0 shrink">
                 {isLast ? (
                   <BreadcrumbPage>

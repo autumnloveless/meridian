@@ -196,7 +196,17 @@ export const OrganizationTasksArchivePage = () => {
                   </div>
                   <p className="mt-0.5 text-sm font-medium text-stone-800">{task.summary}</p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <ProjectBadge projectName={entry.projectName} />
+                    {orgId && entry.projectId ? (
+                      <Link
+                        to={`/organizations/${orgId}/projects/${entry.projectId}/tasks/list`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="inline-flex"
+                      >
+                        <ProjectBadge projectName={entry.projectName} />
+                      </Link>
+                    ) : (
+                      <ProjectBadge projectName={entry.projectName} />
+                    )}
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{task.type}</span>
                   </div>
                 </button>

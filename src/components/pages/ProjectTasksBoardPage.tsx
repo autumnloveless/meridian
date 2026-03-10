@@ -463,11 +463,11 @@ export const ProjectTasksBoardPage = () => {
   const loadedSelectedTask = selectedTask && selectedTask.$isLoaded ? selectedTask : null;
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 px-1 sm:px-0">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold text-foreground">Active board</h2>
 
-        <div className="font-[Inter] surface-feature flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-card/90 px-2 py-1.5">
+        <div className="font-[Inter] surface-feature flex flex-col gap-2 rounded-lg border border-border/70 bg-card/90 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full max-w-[240px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -526,13 +526,13 @@ export const ProjectTasksBoardPage = () => {
         onDragEnd={handleDragEnd}
       >
         <div className="overflow-x-auto pb-2">
-          <div className="flex min-w-max gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
+          <div className="flex min-w-max snap-x snap-mandatory gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
           {boardColumns.map((column) => {
             const tasks = columnTasks[column.status];
             const taskIds = tasks.map((task) => taskDndId(task.$jazz.id));
 
             return (
-              <Card key={column.status} className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-border/70 bg-card/80 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
+              <Card key={column.status} className="h-[calc(100dvh-17rem)] w-[88vw] min-w-[18rem] shrink-0 snap-start border border-border/70 bg-card/80 py-0 sm:w-[80vw] md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0 md:shrink">
                 <CardHeader className="gap-2 border-b border-border/70 px-3 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-sm font-semibold text-foreground">{column.title}</CardTitle>

@@ -32,11 +32,11 @@ import {
 import { getTaskDisplayId } from "@/lib/taskIds";
 
 const boardColumns = [
-  { status: "Backlog", title: "Backlog", tone: "bg-slate-100 text-slate-700" },
-  { status: "In Progress", title: "In Progress", tone: "bg-blue-100 text-blue-700" },
-  { status: "In-Review", title: "In-Review", tone: "bg-amber-100 text-amber-800" },
-  { status: "Completed", title: "Completed", tone: "bg-emerald-100 text-emerald-800" },
-  { status: "Cancelled", title: "Cancelled", tone: "bg-rose-100 text-rose-800" },
+  { status: "Backlog", title: "Backlog", tone: "bg-muted text-foreground" },
+  { status: "In Progress", title: "In Progress", tone: "bg-primary/15 text-primary" },
+  { status: "In-Review", title: "In-Review", tone: "bg-accent/25 text-foreground" },
+  { status: "Completed", title: "Completed", tone: "bg-emerald-500/18 text-emerald-700 dark:text-emerald-300" },
+  { status: "Cancelled", title: "Cancelled", tone: "bg-destructive/15 text-destructive" },
 ] as const;
 type BoardStatus = (typeof boardColumns)[number]["status"];
 
@@ -52,7 +52,7 @@ const isBoardStatus = (status: string): status is BoardStatus =>
 const KanbanColumn = ({ status, children }: { status: string; children: React.ReactNode }) => {
   const droppable = useDroppable({ id: columnDndId(status) });
   return (
-    <div ref={droppable.setNodeRef} className={droppable.isOver ? "rounded-md bg-stone-100/80" : "rounded-md"}>
+    <div ref={droppable.setNodeRef} className={droppable.isOver ? "rounded-md bg-muted/50" : "rounded-md"}>
       {children}
     </div>
   );
@@ -76,26 +76,26 @@ const KanbanCard = ({
       style={style}
       {...draggable.attributes}
       {...draggable.listeners}
-      className="cursor-grab border border-stone-200 bg-white py-2 shadow-sm"
+      className="cursor-grab border border-border/70 bg-card py-2 shadow-sm"
       onClick={() => onSelect(entry.task.$jazz.id)}
     >
       <CardContent className="space-y-2 px-3">
-        <p className="line-clamp-3 text-[13px] leading-snug font-medium text-stone-800">{entry.task.summary}</p>
+        <p className="line-clamp-3 text-sm leading-snug font-medium text-foreground">{entry.task.summary}</p>
         <div className="flex items-center justify-between gap-2">
           <ProjectBadge projectName={entry.projectName} />
           <Link
             to={entry.projectId
               ? `/organizations/${orgId}/projects/${entry.projectId}/tasks/${entry.task.$jazz.id}`
               : `/organizations/${orgId}/tasks/${entry.task.$jazz.id}`}
-            className="text-[10px] font-medium text-sky-700 hover:underline"
+            className="text-xs font-medium text-primary hover:underline"
             onClick={(event) => event.stopPropagation()}
           >
             {getTaskDisplayId(entry.task, entry.taskKeyPrefix)}
           </Link>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">{entry.task.type}</Badge>
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+          <Badge variant="outline" className="h-5 px-1.5 text-xs font-semibold">{entry.task.type}</Badge>
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
             {(entry.task.assigned_to && entry.task.assigned_to.$isLoaded ? entry.task.assigned_to.name[0] : "?")?.toUpperCase()}
           </span>
         </div>
@@ -240,15 +240,15 @@ export const OrganizationTasksBoardPage = () => {
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 px-1 sm:px-0">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-stone-900">Organization Active Board</h2>
+        <h2 className="text-xl font-semibold text-foreground">Organization Active Board</h2>
 
         <div className="space-y-2">
           <div className="relative w-full max-w-[240px]">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
+              className="h-9 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search task"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -271,23 +271,23 @@ export const OrganizationTasksBoardPage = () => {
 
       <DndContext sensors={sensors} onDragEnd={handleKanbanDragEnd}>
         <div className="overflow-x-auto pb-2">
-          <div className="flex min-w-max gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
+          <div className="flex min-w-max snap-x snap-mandatory gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
           {boardColumns.map((column) => {
             const entries = columns[column.status];
 
             return (
               <KanbanColumn key={column.status} status={column.status}>
-                <Card className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-stone-200 bg-stone-100/60 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
-                  <CardHeader className="gap-2 border-b border-stone-200 px-3 py-3">
+                <Card className="h-[calc(100dvh-17rem)] w-[88vw] min-w-[18rem] shrink-0 snap-start border border-border/70 bg-card/85 py-0 sm:w-[80vw] md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0 md:shrink">
+                  <CardHeader className="gap-2 border-b border-border/70 px-3 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-sm font-semibold text-stone-800">{column.title}</CardTitle>
-                      <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{entries.length}</Badge>
+                      <CardTitle className="text-sm font-semibold text-foreground">{column.title}</CardTitle>
+                      <Badge className={`h-5 px-1.5 text-xs ${column.tone}`}>{entries.length}</Badge>
                     </div>
                   </CardHeader>
 
                   <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2 pt-2">
                     {entries.length === 0 ? (
-                      <div className="rounded border border-dashed border-stone-300 bg-white/60 p-3 text-xs text-stone-500">
+                      <div className="rounded border border-dashed border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">
                         No tasks
                       </div>
                     ) : (
