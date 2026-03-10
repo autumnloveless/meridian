@@ -250,6 +250,9 @@ export const ProjectTasksListPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedBucketIds, setCollapsedBucketIds] = useState<Set<string>>(new Set());
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [desktopTaskType, setDesktopTaskType] = useState<TaskType>("Task");
+  const [desktopTaskSummary, setDesktopTaskSummary] = useState("");
+  const [desktopTargetBucketId, setDesktopTargetBucketId] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -339,6 +342,21 @@ export const ProjectTasksListPage = () => {
 
     setCreateDraft((current) => ({ ...current, bucketId: defaultBucket.$jazz.id }));
   }, [createDraft.bucketId, createTargetBuckets, isCreateDialogOpen]);
+
+  useEffect(() => {
+    if (createTargetBuckets.length === 0) {
+      if (desktopTargetBucketId) {
+        setDesktopTargetBucketId("");
+      }
+      return;
+    }
+
+    const currentExists = createTargetBuckets.some((bucket) => bucket.$jazz.id === desktopTargetBucketId);
+    if (currentExists) return;
+
+    const defaultBucket = createTargetBuckets.find((bucket) => bucket.type === "Backlog") ?? createTargetBuckets[0];
+    setDesktopTargetBucketId(defaultBucket.$jazz.id);
+  }, [createTargetBuckets, desktopTargetBucketId]);
 
   const syncStatusForTargetBucket = (task: LoadedTask, bucketType: BucketType) => {
     // Bucket membership and workflow status are decoupled.
@@ -494,6 +512,13 @@ export const ProjectTasksListPage = () => {
     createTaskInBucket(createDraft.bucketId, createDraft.summary, createDraft.taskType);
     setIsCreateDialogOpen(false);
     setCreateDraft((current) => ({ ...current, summary: "" }));
+  };
+
+  const createTaskFromDesktopBar = () => {
+    if (!desktopTargetBucketId) return;
+
+    createTaskInBucket(desktopTargetBucketId, desktopTaskSummary, desktopTaskType);
+    setDesktopTaskSummary("");
   };
 
   const findBucketByTaskId = (taskId: string) =>
@@ -819,6 +844,51 @@ export const ProjectTasksListPage = () => {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
+          </div>
+
+          <div className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:gap-2">
+            <select
+              value={desktopTaskType}
+              onChange={(event) => setDesktopTaskType(event.target.value as TaskType)}
+              className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground"
+              aria-label="Task type"
+            >
+              <option value="Task">Task</option>
+              <option value="Bug">Bug</option>
+            </select>
+
+            <select
+              value={desktopTargetBucketId}
+              onChange={(event) => setDesktopTargetBucketId(event.target.value)}
+              className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground"
+              aria-label="Target bucket"
+            >
+              {createTargetBuckets.map((bucket) => (
+                <option key={bucket.$jazz.id} value={bucket.$jazz.id}>
+                  {bucket.name}
+                </option>
+              ))}
+            </select>
+
+            <Input
+              className="h-7 min-w-[220px] flex-1 text-xs"
+              value={desktopTaskSummary}
+              onChange={(event) => setDesktopTaskSummary(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") createTaskFromDesktopBar();
+              }}
+              placeholder="Create task"
+              aria-label="Create task"
+            />
+
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={createTaskFromDesktopBar}
+              disabled={!profile || !desktopTaskSummary.trim() || !desktopTargetBucketId}
+            >
+              Create task
+            </Button>
           </div>
         </div>
       </div>
