@@ -251,7 +251,9 @@ export const OverviewPage = () => {
     const entries: TaskEntry[] = [];
 
     for (const organization of organizations) {
-      const orgBuckets = organization.task_buckets.map((bucket: any) => bucket);
+      const orgBuckets = organization.task_buckets
+        .map((bucket: any) => bucket)
+        .filter((bucket: any) => bucket.type === "Active");
       for (const bucket of orgBuckets) {
         const tasks = bucket.tasks.map((task: any) => task);
         for (const task of tasks) {
@@ -273,7 +275,9 @@ export const OverviewPage = () => {
 
       const orgProjects = organization.projects.map((project: any) => project);
       for (const project of orgProjects) {
-        const projectBuckets = project.task_buckets.map((bucket: any) => bucket);
+        const projectBuckets = project.task_buckets
+          .map((bucket: any) => bucket)
+          .filter((bucket: any) => bucket.type === "Active");
         for (const bucket of projectBuckets) {
           const tasks = bucket.tasks.map((task: any) => task);
           for (const task of tasks) {

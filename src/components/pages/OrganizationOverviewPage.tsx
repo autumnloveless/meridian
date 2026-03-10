@@ -192,7 +192,7 @@ export const OrganizationOverviewPage = () => {
     }
 
     return collectOrganizationTaskContainers(organization as LoadedOrganization)
-      .filter((entry) => entry.task.status !== "Archived")
+      .filter((entry) => entry.bucket.type === "Active" && entry.task.status !== "Archived")
       .map((entry) => ({
         bucket: entry.bucket,
         bucketName: entry.bucket.name,

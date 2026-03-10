@@ -221,6 +221,7 @@ export const ProjectOverviewPage = () => {
 
     const tasks: Array<{ bucket: any; bucketName: string; task: any }> = [];
     for (const bucket of project.task_buckets.map((entry) => entry)) {
+      if (bucket.type !== "Active") continue;
       for (const task of bucket.tasks.map((entry) => entry)) {
         if (task.status === "Archived") continue;
         tasks.push({ bucket, bucketName: bucket.name, task });
