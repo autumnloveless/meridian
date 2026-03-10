@@ -3,8 +3,11 @@ import { Link } from "react-router";
 import { useAccount } from "jazz-tools/react";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
+  type DragCancelEvent,
   type DragEndEvent,
+  type DragStartEvent,
   useDraggable,
   useDroppable,
   useSensor,
@@ -117,6 +120,14 @@ const KanbanTaskCard = ({
   );
 };
 
+const KanbanTaskOverlayCard = ({ entry }: { entry: TaskEntry }) => (
+  <div className="w-[280px] max-w-[90vw] rounded-lg border border-border/70 bg-card px-2 py-2 text-left shadow-2xl">
+    <p className="text-sm font-medium">{entry.task.summary}</p>
+    <p className="text-xs font-medium text-primary">{getTaskDisplayId(entry.task, entry.keyPrefix)}</p>
+    <p className="text-xs text-muted-foreground">{entry.projectLabel}</p>
+  </div>
+);
+
 export const OverviewPage = () => {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
   const [taskView, setTaskView] = useState<"list" | "kanban">("list");
@@ -124,6 +135,7 @@ export const OverviewPage = () => {
   const [taskSummary, setTaskSummary] = useState("");
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const account = useAccount(Account, {
@@ -307,6 +319,11 @@ export const OverviewPage = () => {
     return assignedActiveTasks.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
   }, [assignedActiveTasks, selectedTaskId]);
 
+  const draggedTaskEntry = useMemo(() => {
+    if (!activeDragTaskId) return null;
+    return assignedActiveTasks.find((entry) => entry.task.$jazz.id === activeDragTaskId) ?? null;
+  }, [assignedActiveTasks, activeDragTaskId]);
+
   const columns = useMemo(() => {
     const initial: Record<string, TaskEntry[]> = {
       Backlog: [],
@@ -327,7 +344,17 @@ export const OverviewPage = () => {
 
   const effectiveTaskView = isDesktop ? taskView : "list";
 
+  const handleKanbanDragStart = (event: DragStartEvent) => {
+    const activeTaskId = parseTaskDndId(String(event.active.id));
+    setActiveDragTaskId(activeTaskId);
+  };
+
+  const handleKanbanDragCancel = (_event: DragCancelEvent) => {
+    setActiveDragTaskId(null);
+  };
+
   const handleKanbanDragEnd = (event: DragEndEvent) => {
+    setActiveDragTaskId(null);
     const activeTaskId = parseTaskDndId(String(event.active.id));
     const overRawId = event.over ? String(event.over.id) : null;
     if (!activeTaskId || !overRawId) return;
@@ -556,7 +583,12 @@ export const OverviewPage = () => {
               </div>
             </>
           ) : (
-            <DndContext sensors={sensors} onDragEnd={handleKanbanDragEnd}>
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleKanbanDragStart}
+              onDragCancel={handleKanbanDragCancel}
+              onDragEnd={handleKanbanDragEnd}
+            >
               <div className="overflow-x-auto pb-2">
               <div className="flex min-w-max snap-x snap-mandatory gap-3 md:grid md:min-w-0 md:grid-cols-2 xl:grid-cols-5">
                   {boardColumns.map((column) => (
@@ -583,6 +615,9 @@ export const OverviewPage = () => {
                   ))}
                 </div>
               </div>
+              <DragOverlay>
+                {draggedTaskEntry ? <KanbanTaskOverlayCard entry={draggedTaskEntry} /> : null}
+              </DragOverlay>
             </DndContext>
           )}
         </CardContent>
