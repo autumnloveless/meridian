@@ -18,6 +18,9 @@ const topLevelNavItems = [
 export const Header = () => {
   const location = useLocation();
   const logoHref = location.pathname === "/overview" ? "/" : "/overview";
+  const [isOffline, setIsOffline] = useState(() =>
+    typeof navigator !== "undefined" ? !navigator.onLine : false,
+  );
   const agent = useAgent();
   const isAuthenticated = useIsAuthenticated();
   const isAnonymous = agent.$type$ === "Account" && !isAuthenticated;
@@ -208,6 +211,21 @@ export const Header = () => {
       document.body.style.overflow = previousOverflow;
     };
   }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onOnline = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -465,6 +483,12 @@ export const Header = () => {
       {isAnonymous && (
         <div className="border-t border-amber-500/25 bg-amber-500/10 px-4 py-1.5 text-center text-xs font-medium text-amber-800 dark:text-amber-200 sm:px-6 lg:px-8">
           You are browsing anonymously. Log in to enable sync and back up your data.
+        </div>
+      )}
+
+      {isOffline && (
+        <div className="border-t border-sky-500/25 bg-sky-500/10 px-4 py-1.5 text-center text-xs font-medium text-sky-900 dark:text-sky-100 sm:px-6 lg:px-8">
+          Offline mode: You can keep working. Changes will sync automatically when your network connection is restored.
         </div>
       )}
 
