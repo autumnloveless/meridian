@@ -46,26 +46,26 @@ const parseColumnDndId = (value: string) =>
     : null;
 
 const boardColumns = [
-  { status: "Backlog", title: "Backlog", tone: "bg-slate-100 text-slate-700" },
+  { status: "Backlog", title: "Backlog", tone: "bg-muted text-foreground" },
   {
     status: "In Progress",
     title: "In Progress",
-    tone: "bg-blue-100 text-blue-700",
+    tone: "bg-primary/15 text-primary",
   },
   {
     status: "In-Review",
     title: "In-Review",
-    tone: "bg-amber-100 text-amber-800",
+    tone: "bg-accent/25 text-foreground",
   },
   {
     status: "Completed",
     title: "Completed",
-    tone: "bg-emerald-100 text-emerald-800",
+    tone: "bg-emerald-500/18 text-emerald-700 dark:text-emerald-300",
   },
   {
     status: "Cancelled",
     title: "Cancelled",
-    tone: "bg-rose-100 text-rose-800",
+    tone: "bg-destructive/15 text-destructive",
   },
 ] as const;
 
@@ -122,38 +122,38 @@ function TaskCard({
     <Card
       ref={sortable.setNodeRef}
       style={style}
-      className="cursor-grab border border-stone-200 bg-white py-2 shadow-sm active:cursor-grabbing"
+      className="cursor-grab border border-border/70 bg-card py-2 shadow-sm active:cursor-grabbing"
       onClick={() => onSelect(task)}
       {...sortable.attributes}
       {...sortable.listeners}
     >
       <CardContent className="space-y-2 px-3">
         <div className="flex items-start gap-2">
-          <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-stone-400" />
-          <p className="line-clamp-3 text-[13px] leading-snug font-medium text-stone-800">
+          <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <p className="line-clamp-3 text-sm leading-snug font-medium text-foreground">
             {task.summary}
           </p>
         </div>
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
+            <Badge variant="outline" className="h-5 px-1.5 text-xs font-semibold">
               {task.type}
             </Badge>
             {taskHref ? (
               <Link
                 to={taskHref}
-                className="text-[10px] font-medium text-sky-700 hover:underline"
+                className="text-xs font-medium text-primary hover:underline"
                 onClick={(event) => event.stopPropagation()}
               >
                 {getTaskDisplayId(task, taskIdPrefix)}
               </Link>
             ) : (
-              <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
+              <span className="text-xs font-medium text-primary">{getTaskDisplayId(task, taskIdPrefix)}</span>
             )}
           </div>
 
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
             {assigneeInitial}
           </span>
         </div>
@@ -161,7 +161,7 @@ function TaskCard({
         {task.tags.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {task.tags.slice(0, 2).map((tag: string) => (
-              <Badge key={`${task.$jazz.id}-${tag}`} variant="secondary" className="h-5 px-1.5 text-[10px]">
+              <Badge key={`${task.$jazz.id}-${tag}`} variant="secondary" className="h-5 px-1.5 text-xs">
                 {tag}
               </Badge>
             ))}
@@ -195,14 +195,14 @@ function ColumnDropZone({
 
 function DragTaskPreview({ task, taskIdPrefix }: { task: LoadedTask; taskIdPrefix: string }) {
   return (
-    <Card className="w-[260px] border border-stone-300 bg-white py-2 shadow-2xl">
+    <Card className="w-[260px] border border-border bg-card py-2 shadow-2xl">
       <CardContent className="space-y-2 px-3">
-        <p className="text-[13px] leading-snug font-medium text-stone-800">{task.summary}</p>
+        <p className="text-sm leading-snug font-medium text-foreground">{task.summary}</p>
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
+          <Badge variant="outline" className="h-5 px-1.5 text-xs font-semibold">
             {task.type}
           </Badge>
-          <span className="text-[10px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
+          <span className="text-xs font-medium text-primary">{getTaskDisplayId(task, taskIdPrefix)}</span>
         </div>
       </CardContent>
     </Card>
@@ -465,13 +465,13 @@ export const ProjectTasksBoardPage = () => {
   return (
     <section className="space-y-3">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-stone-900">Active board</h2>
+        <h2 className="text-xl font-semibold text-foreground">Active board</h2>
 
-        <div className="font-[Inter] flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+        <div className="font-[Inter] surface-feature flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-card/90 px-2 py-1.5">
           <div className="relative w-full max-w-[240px]">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
+              className="h-9 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search task"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -486,7 +486,7 @@ export const ProjectTasksBoardPage = () => {
                 taskType: event.target.value as TaskType,
               }))
             }
-            className="h-9 w-full rounded border border-stone-300 bg-white px-2 text-sm text-stone-800 sm:h-7 sm:w-auto sm:text-xs"
+            className="h-9 w-full rounded border border-input bg-background px-2 text-sm text-foreground sm:h-7 sm:w-auto sm:text-xs"
             aria-label="Task type"
           >
             <option value="Task">Task</option>
@@ -532,11 +532,11 @@ export const ProjectTasksBoardPage = () => {
             const taskIds = tasks.map((task) => taskDndId(task.$jazz.id));
 
             return (
-              <Card key={column.status} className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-stone-200 bg-stone-100/60 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
-                <CardHeader className="gap-2 border-b border-stone-200 px-3 py-3">
+              <Card key={column.status} className="h-[calc(100dvh-18rem)] w-[85vw] min-w-[18rem] border border-border/70 bg-card/80 py-0 md:h-[calc(100vh-16rem)] md:w-auto md:min-w-0">
+                <CardHeader className="gap-2 border-b border-border/70 px-3 py-3">
                   <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-sm font-semibold text-stone-800">{column.title}</CardTitle>
-                    <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{tasks.length}</Badge>
+                    <CardTitle className="text-sm font-semibold text-foreground">{column.title}</CardTitle>
+                    <Badge className={`h-5 px-1.5 text-xs ${column.tone}`}>{tasks.length}</Badge>
                   </div>
                 </CardHeader>
 
@@ -544,7 +544,7 @@ export const ProjectTasksBoardPage = () => {
                   <ColumnDropZone status={column.status}>
                     <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                       {tasks.length === 0 ? (
-                        <div className="rounded border border-dashed border-stone-300 bg-white/60 p-3 text-xs text-stone-500">
+                        <div className="rounded border border-dashed border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">
                           Drop tasks here
                         </div>
                       ) : (

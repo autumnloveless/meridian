@@ -112,21 +112,21 @@ function TaskRow({
     <tr
       ref={sortable.setNodeRef}
       style={style}
-      className="border-b border-stone-200 bg-white hover:bg-stone-50"
+      className="border-b border-border/70 bg-card hover:bg-muted/40"
       onClick={() => onSelect(task)}
     >
       <td className="w-9 px-1.5 py-1 align-middle">
         <button
           type="button"
           aria-label={`Drag ${task.summary}`}
-          className="inline-flex h-4 w-4 items-center justify-center rounded text-stone-500 hover:bg-stone-100"
+          className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-muted"
           {...sortable.attributes}
           {...sortable.listeners}
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
       </td>
-      <td className="w-28 px-1.5 py-1 text-[11px] font-medium text-sky-700">
+      <td className="w-28 px-1.5 py-1 text-xs font-semibold text-primary">
         {taskHref ? (
           <Link
             to={taskHref}
@@ -139,21 +139,21 @@ function TaskRow({
           getTaskDisplayId(task, taskIdPrefix)
         )}
       </td>
-      <td className="px-1.5 py-1 text-[13px] text-stone-800">{task.summary}</td>
-      <td className="w-24 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
+      <td className="px-1.5 py-1 text-sm text-foreground">{task.summary}</td>
+      <td className="w-24 px-1.5 py-1 text-xs font-semibold uppercase tracking-wide">
         {task.tags.length > 0 ? (
-          <span className="inline-flex rounded bg-stone-200 px-1.5 py-0.5 text-stone-700">
+          <span className="inline-flex rounded bg-muted px-1.5 py-0.5 text-foreground">
             {task.tags[0]}
           </span>
         ) : (
-          <span className="text-stone-400">-</span>
+          <span className="text-muted-foreground">-</span>
         )}
       </td>
-      <td className="w-28 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+      <td className="w-28 px-1.5 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {task.status}
       </td>
-      <td className="w-12 px-1.5 py-1 text-right text-stone-500">
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+      <td className="w-12 px-1.5 py-1 text-right text-muted-foreground">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
           {(task.assigned_to && task.assigned_to.$isLoaded
             ? task.assigned_to.name[0]
             : "?")?.toUpperCase()}
@@ -163,7 +163,7 @@ function TaskRow({
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
-            className="inline-flex h-6 w-6 items-center justify-center rounded border border-stone-300 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+            className="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-40"
             disabled={!canMoveUp}
             aria-label={`Move ${task.summary} up`}
             onClick={(event) => {
@@ -175,7 +175,7 @@ function TaskRow({
           </button>
           <button
             type="button"
-            className="inline-flex h-6 w-6 items-center justify-center rounded border border-stone-300 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+            className="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-40"
             disabled={!canMoveDown}
             aria-label={`Move ${task.summary} down`}
             onClick={(event) => {
@@ -212,14 +212,14 @@ function BucketBody({
 
 function DragTaskPreview({ task, taskIdPrefix }: { task: LoadedTask; taskIdPrefix: string }) {
   return (
-    <div className="w-[680px] max-w-[96vw] rounded border border-stone-300 bg-white px-2 py-1 text-sm shadow-2xl">
+    <div className="w-[680px] max-w-[96vw] rounded border border-border bg-card px-2 py-1 text-sm shadow-2xl">
       <div className="grid grid-cols-[20px_90px_minmax(0,1fr)_74px_88px_40px] items-center gap-1.5">
-        <GripVertical className="h-3.5 w-3.5 text-stone-500" />
-        <span className="text-[11px] font-medium text-sky-700">{getTaskDisplayId(task, taskIdPrefix)}</span>
-        <span className="truncate text-[13px] text-stone-800">{task.summary}</span>
-        <span className="text-[10px] font-semibold uppercase text-stone-600">{task.tags[0] ?? "-"}</span>
-        <span className="text-[10px] font-semibold uppercase text-stone-600">{task.status}</span>
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold text-primary">{getTaskDisplayId(task, taskIdPrefix)}</span>
+        <span className="truncate text-sm text-foreground">{task.summary}</span>
+        <span className="text-xs font-semibold uppercase text-muted-foreground">{task.tags[0] ?? "-"}</span>
+        <span className="text-xs font-semibold uppercase text-muted-foreground">{task.status}</span>
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
           {(task.assigned_to && task.assigned_to.$isLoaded
             ? task.assigned_to.name[0]
             : "?")?.toUpperCase()}
@@ -702,13 +702,13 @@ export const ProjectTasksListPage = () => {
         ) : (
           <button
             type="button"
-            className="flex items-center gap-2 text-xs text-stone-600 hover:text-stone-900"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => toggleBucketCollapsed(bucket.$jazz.id)}
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? "Expand" : "Collapse"} bucket ${bucket.name}`}
           >
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`} />
-            <span className="font-semibold text-stone-800">{bucket.name}</span>
+            <span className="font-semibold text-foreground">{bucket.name}</span>
             <span>{`${bucket.tasks.length} issue${bucket.tasks.length === 1 ? "" : "s"}`}</span>
           </button>
         )}
@@ -732,7 +732,7 @@ export const ProjectTasksListPage = () => {
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 w-7 px-0 text-xs text-stone-600 sm:w-auto sm:px-2"
+                className="h-7 w-7 px-0 text-xs text-muted-foreground sm:w-auto sm:px-2"
                 aria-label="Archive completed tasks"
               >
                 <Archive className="h-3.5 w-3.5" />
@@ -781,7 +781,7 @@ export const ProjectTasksListPage = () => {
               </>
             ) : null}
 
-            <Button size="sm" variant="ghost" className="h-7 w-7 px-0 text-stone-600" aria-label="More actions">
+            <Button size="sm" variant="ghost" className="h-7 w-7 px-0 text-muted-foreground" aria-label="More actions">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </div>
@@ -809,12 +809,12 @@ export const ProjectTasksListPage = () => {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-xl font-semibold text-stone-900">Backlog</h2>
-        <div className="font-[Inter] mt-2 flex flex-col gap-2 sm:rounded sm:border sm:border-stone-200 sm:bg-stone-50 sm:px-2 sm:py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <h2 className="text-xl font-semibold text-foreground">Backlog</h2>
+        <div className="font-[Inter] surface-feature mt-2 flex flex-col gap-2 sm:rounded-lg sm:border sm:border-border/70 sm:bg-card/90 sm:px-2 sm:py-1.5 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full sm:max-w-[220px]">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500" />
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-9 border-stone-300 pl-7 text-sm sm:h-7 sm:text-xs"
+              className="h-9 pl-7 text-sm sm:h-7 sm:text-xs"
               placeholder="Search by summary, key, assignee"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -859,8 +859,8 @@ export const ProjectTasksListPage = () => {
                 : null;
 
             return (
-              <div key={bucket.$jazz.id} className="overflow-hidden rounded-sm border border-stone-200 bg-white">
-                <div className="border-b border-stone-200 bg-stone-100">
+              <div key={bucket.$jazz.id} className="overflow-hidden rounded-md border border-border/70 bg-card">
+                <div className="border-b border-border/70 bg-muted/55">
                   {renderBucketHeader(bucket)}
                 </div>
 
@@ -868,7 +868,7 @@ export const ProjectTasksListPage = () => {
                   <div className="p-0">
                     <div className="space-y-0 md:hidden">
                       {filteredTasks.length === 0 ? (
-                        <div className="border-b border-dashed border-stone-200 px-3 py-3 text-xs text-stone-500 last:border-b-0">
+                        <div className="border-b border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground last:border-b-0">
                           No tasks in this bucket.
                         </div>
                       ) : (
@@ -877,7 +877,7 @@ export const ProjectTasksListPage = () => {
                             key={task.$jazz.id}
                             role="button"
                             tabIndex={0}
-                            className="w-full border-b border-stone-200 bg-white px-2.5 py-2 text-left last:border-b-0"
+                            className="w-full border-b border-border/70 bg-card px-2.5 py-2 text-left last:border-b-0"
                             onClick={() => setSelectedTaskId(task.$jazz.id)}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
@@ -887,20 +887,20 @@ export const ProjectTasksListPage = () => {
                             }}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span className="text-[11px] font-medium text-sky-700">{getTaskKey(task)}</span>
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold text-orange-700">
+                              <span className="text-xs font-semibold text-primary">{getTaskKey(task)}</span>
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
                                 {(task.assigned_to && task.assigned_to.$isLoaded ? task.assigned_to.name[0] : "?")?.toUpperCase()}
                               </span>
                             </div>
-                            <p className="mt-0.5 text-sm text-stone-800">{task.summary}</p>
+                            <p className="mt-0.5 text-sm text-foreground">{task.summary}</p>
 
                             <div className="mt-1.5 flex items-center gap-1.5">
-                              <span className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-600">
+                              <span className="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted-foreground">
                                 <FolderKanban className="h-3.5 w-3.5" />
                               </span>
                               <select
                                 id={`bucket-move-${task.$jazz.id}`}
-                                className="h-8 min-w-0 flex-1 rounded border border-stone-300 bg-white px-2 text-xs text-stone-700"
+                                className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 text-xs text-foreground"
                                 value={bucket.$jazz.id}
                                 onClick={(event) => event.stopPropagation()}
                                 onChange={(event) => {
@@ -917,7 +917,7 @@ export const ProjectTasksListPage = () => {
 
                               <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-700 disabled:opacity-40"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-foreground disabled:opacity-40"
                                 disabled={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) <= 0}
                                 aria-label={`Move ${task.summary} up`}
                                 onClick={(event) => {
@@ -929,7 +929,7 @@ export const ProjectTasksListPage = () => {
                               </button>
                               <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-stone-300 text-stone-700 disabled:opacity-40"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-foreground disabled:opacity-40"
                                 disabled={bucket.tasks.findIndex((candidate) => candidate.$jazz.id === task.$jazz.id) >= bucket.tasks.length - 1}
                                 aria-label={`Move ${task.summary} down`}
                                 onClick={(event) => {
@@ -947,7 +947,7 @@ export const ProjectTasksListPage = () => {
 
                     <div className="hidden overflow-x-auto md:block">
                       <table className="w-full table-fixed border-collapse text-sm">
-                        <thead className="bg-stone-100 text-[10px] uppercase tracking-[0.07em] text-stone-600">
+                        <thead className="bg-muted/70 text-xs uppercase tracking-[0.07em] text-muted-foreground">
                           <tr>
                             <th className="w-9 px-1.5 py-1 text-left" />
                             <th className="w-28 px-1.5 py-1 text-left">Key</th>
@@ -963,7 +963,7 @@ export const ProjectTasksListPage = () => {
                           <BucketBody bucketId={bucket.$jazz.id}>
                             {filteredTasks.length === 0 && indicatorIndex === null ? (
                               <tr>
-                                <td colSpan={7} className="px-2 py-2 text-xs text-stone-500">
+                                <td colSpan={7} className="px-2 py-2 text-xs text-muted-foreground">
                                   No tasks in this bucket.
                                 </td>
                               </tr>
@@ -1056,7 +1056,7 @@ export const ProjectTasksListPage = () => {
 
           <div className="space-y-3">
             <label className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Type</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</span>
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={createDraft.taskType}
@@ -1068,7 +1068,7 @@ export const ProjectTasksListPage = () => {
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Bucket</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bucket</span>
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={createDraft.bucketId}
@@ -1083,7 +1083,7 @@ export const ProjectTasksListPage = () => {
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Summary</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</span>
               <Input
                 className="h-10"
                 value={createDraft.summary}

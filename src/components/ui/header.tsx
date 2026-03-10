@@ -17,6 +17,7 @@ const topLevelNavItems = [
 
 export const Header = () => {
   const location = useLocation();
+  const logoHref = location.pathname === "/overview" ? "/" : "/overview";
   const agent = useAgent();
   const isAuthenticated = useIsAuthenticated();
   const isAnonymous = agent.$type$ === "Account" && !isAuthenticated;
@@ -304,7 +305,7 @@ export const Header = () => {
       <div className="mx-auto flex h-14 w-full items-center justify-between gap-3 px-3 sm:h-16 sm:gap-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link
-            to="/overview"
+            to={logoHref}
             className="text-lg font-semibold text-foreground transition-colors hover:text-primary"
             aria-label="Meridian home"
           >

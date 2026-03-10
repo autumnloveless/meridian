@@ -27,11 +27,11 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
 const boardColumns = [
-  { status: "Backlog", title: "Backlog", tone: "bg-slate-100 text-slate-700" },
-  { status: "In Progress", title: "In Progress", tone: "bg-blue-100 text-blue-700" },
-  { status: "In-Review", title: "In-Review", tone: "bg-amber-100 text-amber-800" },
-  { status: "Completed", title: "Completed", tone: "bg-emerald-100 text-emerald-800" },
-  { status: "Cancelled", title: "Cancelled", tone: "bg-rose-100 text-rose-800" },
+  { status: "Backlog", title: "Backlog", tone: "bg-muted text-foreground" },
+  { status: "In Progress", title: "In Progress", tone: "bg-primary/15 text-primary" },
+  { status: "In-Review", title: "In-Review", tone: "bg-accent/25 text-foreground" },
+  { status: "Completed", title: "Completed", tone: "bg-emerald-500/18 text-emerald-700 dark:text-emerald-300" },
+  { status: "Cancelled", title: "Cancelled", tone: "bg-destructive/15 text-destructive" },
 ] as const;
 
 const COLUMN_PREFIX = "project-overview-col:";
@@ -77,20 +77,20 @@ const KanbanTaskCard = ({
       {...draggable.attributes}
       {...draggable.listeners}
       type="button"
-      className="w-full rounded border bg-background px-2 py-2 text-left hover:bg-muted/50"
+      className="w-full rounded-lg border border-border/70 bg-card px-2 py-2 text-left shadow-xs transition-colors hover:bg-muted/50"
       onClick={() => onSelect(entry.task.$jazz.id)}
     >
       <p className="text-sm font-medium">{entry.task.summary}</p>
       {orgId && projectId ? (
         <Link
           to={`/organizations/${orgId}/projects/${projectId}/tasks/${entry.task.$jazz.id}`}
-          className="text-[11px] text-sky-700 hover:underline"
+          className="text-xs font-medium text-primary hover:underline"
           onClick={(event) => event.stopPropagation()}
         >
           {getTaskDisplayId(entry.task, projectKey)}
         </Link>
       ) : (
-        <p className="text-[11px] text-sky-700">{getTaskDisplayId(entry.task, projectKey)}</p>
+        <p className="text-xs font-medium text-primary">{getTaskDisplayId(entry.task, projectKey)}</p>
       )}
     </button>
   );
@@ -296,8 +296,18 @@ export const ProjectOverviewPage = () => {
 
   return (
     <section className="space-y-3 p-1 sm:space-y-4">
+      <div className="hero-gradient relative overflow-hidden rounded-2xl border border-primary/20 px-4 py-4 sm:px-5">
+        <div className="absolute -right-10 -top-10 size-36 rounded-full bg-white/25 blur-2xl" aria-hidden="true" />
+        <div className="absolute -bottom-16 left-8 size-44 rounded-full bg-primary/18 blur-3xl" aria-hidden="true" />
+        <div className="relative z-10">
+          <p className="eyebrow-label text-foreground/80">Project Pulse</p>
+          <h1 className="mt-1 font-serif text-2xl font-semibold text-foreground sm:text-3xl">Project Summary</h1>
+          <p className="mt-1 text-sm text-foreground/80">Context, notes, and active execution in one focused view.</p>
+        </div>
+      </div>
+
       <header>
-        <h2 className="text-lg font-semibold">Project Summary</h2>
+        <h2 className="text-lg font-semibold">Overview Notes</h2>
         <p className="text-sm text-muted-foreground">Quick project context and status notes.</p>
       </header>
 
@@ -330,7 +340,7 @@ export const ProjectOverviewPage = () => {
         {saveError ? <span className="text-red-700">{saveError}</span> : null}
       </footer>
 
-      <section className="space-y-3 rounded-md border bg-card p-3">
+      <section className="surface-feature space-y-3 rounded-md border border-border/70 bg-card/90 p-3">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-base font-semibold">Active Tasks</h3>
@@ -404,7 +414,7 @@ export const ProjectOverviewPage = () => {
         {effectiveTaskView === "list" ? (
           <div className="overflow-hidden rounded-md border">
             <table className="w-full table-fixed border-collapse text-sm">
-              <thead className="bg-muted/60 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-muted/70 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="w-28 px-2 py-1 text-left">Key</th>
                   <th className="px-2 py-1 text-left">Summary</th>
@@ -421,7 +431,7 @@ export const ProjectOverviewPage = () => {
                 ) : (
                   activeTasks.map((entry) => (
                     <tr key={entry.task.$jazz.id} className="cursor-pointer border-t hover:bg-muted/40" onClick={() => setSelectedTaskId(entry.task.$jazz.id)}>
-                      <td className="px-2 py-1 text-[11px] font-medium text-sky-700">
+                      <td className="px-2 py-1 text-xs font-semibold text-primary">
                         {orgId && projectId ? (
                           <Link
                             to={`/organizations/${orgId}/projects/${projectId}/tasks/${entry.task.$jazz.id}`}
@@ -435,8 +445,8 @@ export const ProjectOverviewPage = () => {
                         )}
                       </td>
                       <td className="px-2 py-1">{entry.task.summary}</td>
-                      <td className="px-2 py-1 text-[11px] uppercase">{entry.task.type}</td>
-                      <td className="px-2 py-1 text-[11px] uppercase">{entry.task.status}</td>
+                      <td className="px-2 py-1 text-xs uppercase">{entry.task.type}</td>
+                      <td className="px-2 py-1 text-xs uppercase">{entry.task.status}</td>
                       <td className="px-2 py-1 text-xs text-muted-foreground">{entry.bucketName}</td>
                     </tr>
                   ))
@@ -450,10 +460,10 @@ export const ProjectOverviewPage = () => {
               <div className="flex min-w-max gap-3">
                 {boardColumns.map((column) => (
                   <KanbanColumn key={column.status} status={column.status}>
-                    <div className="w-[18rem] rounded-md border bg-muted/20">
+                    <div className="surface-feature w-[18rem] rounded-md border border-border/70 bg-card/85">
                       <div className="flex items-center justify-between border-b px-3 py-2">
                         <p className="text-sm font-semibold">{column.title}</p>
-                        <Badge className={`h-5 px-1.5 text-[10px] ${column.tone}`}>{columns[column.status].length}</Badge>
+                        <Badge className={`h-5 px-1.5 text-xs ${column.tone}`}>{columns[column.status].length}</Badge>
                       </div>
                       <div className="space-y-2 p-2">
                         {columns[column.status].length === 0 ? (

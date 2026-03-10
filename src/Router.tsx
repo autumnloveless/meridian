@@ -36,13 +36,14 @@ import { ProjectTestResultsPage } from "./components/pages/ProjectTestResultsPag
 import { ProjectTestResultDetailsPage } from "./components/pages/ProjectTestResultDetailsPage";
 import { ProjectSettingsPage } from "./components/pages/ProjectSettingsPage";
 import { NotFoundPage } from "./components/pages/NotFoundPage";
+import { LandingPage } from "./components/pages/LandingPage";
 
 export const Router = () => {
     return (
         <BrowserRouter>
             <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route element={<BaseLayout />}>
-                    <Route path="/" element={<Navigate to="/overview" replace />} />
                     <Route path="/overview" element={<OverviewPage />} />
                     <Route path="/organizations" element={<OrganizationsPage />} />
                     <Route path="/tags" element={<TagsPage />} />
