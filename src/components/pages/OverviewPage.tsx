@@ -388,7 +388,7 @@ export const OverviewPage = () => {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
-      <div className="hero-gradient relative overflow-hidden rounded-2xl border border-primary/20 px-4 py-4 sm:px-5">
+      <div className="hero-gradient-soft relative overflow-hidden rounded-2xl border border-primary/20 px-4 py-4 sm:px-5">
         <div className="absolute -right-12 -top-12 size-36 rounded-full bg-white/25 blur-2xl" aria-hidden="true" />
         <div className="absolute -bottom-16 left-8 size-44 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
         <div className="relative z-10">

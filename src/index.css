@@ -176,6 +176,15 @@
     );
   }
 
+  .hero-gradient-soft {
+    background-image: linear-gradient(
+      130deg,
+      color-mix(in oklab, var(--primary) 18%, white) 0%,
+      color-mix(in oklab, var(--accent) 16%, white) 46%,
+      color-mix(in oklab, var(--chart-4) 14%, white) 100%
+    );
+  }
+
   .eyebrow-label {
     @apply text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground;
   }

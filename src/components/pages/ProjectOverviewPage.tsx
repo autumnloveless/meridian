@@ -296,7 +296,7 @@ export const ProjectOverviewPage = () => {
 
   return (
     <section className="space-y-3 p-1 sm:space-y-4">
-      <div className="hero-gradient relative overflow-hidden rounded-2xl border border-primary/20 px-4 py-4 sm:px-5">
+      <div className="hero-gradient-soft relative overflow-hidden rounded-2xl border border-primary/20 px-4 py-4 sm:px-5">
         <div className="absolute -right-10 -top-10 size-36 rounded-full bg-white/25 blur-2xl" aria-hidden="true" />
         <div className="absolute -bottom-16 left-8 size-44 rounded-full bg-primary/18 blur-3xl" aria-hidden="true" />
         <div className="relative z-10">
