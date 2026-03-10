@@ -15,6 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Account, Organization } from "@/schema";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
@@ -170,14 +171,19 @@ export const OrganizationTasksBoardPage = () => {
     includeArchived: false,
   });
 
-  const columns = useMemo(() => getBoardColumns(filtered), [filtered]);
+  const activeFiltered = useMemo(
+    () => filtered.filter((entry) => entry.bucket.type === "Active"),
+    [filtered]
+  );
+
+  const columns = useMemo(() => getBoardColumns(activeFiltered), [activeFiltered]);
 
   const handleKanbanDragEnd = (event: DragEndEvent) => {
     const activeTaskId = parseTaskDndId(String(event.active.id));
     const overRawId = event.over ? String(event.over.id) : null;
     if (!activeTaskId || !overRawId) return;
 
-    const activeEntry = filtered.find((entry) => entry.task.$jazz.id === activeTaskId);
+    const activeEntry = activeFiltered.find((entry) => entry.task.$jazz.id === activeTaskId);
     if (!activeEntry) return;
 
     const overTaskId = parseTaskDndId(overRawId);
@@ -185,7 +191,7 @@ export const OrganizationTasksBoardPage = () => {
       const columnStatus = parseColumnDndId(overRawId);
       if (columnStatus) return columnStatus;
       if (!overTaskId) return null;
-      const overEntry = filtered.find((entry) => entry.task.$jazz.id === overTaskId);
+      const overEntry = activeFiltered.find((entry) => entry.task.$jazz.id === overTaskId);
       return overEntry ? overEntry.task.status : null;
     })();
 
@@ -209,8 +215,8 @@ export const OrganizationTasksBoardPage = () => {
 
   const selectedTaskEntry = useMemo(() => {
     if (!selectedTaskId) return null;
-    return filtered.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
-  }, [filtered, selectedTaskId]);
+    return activeFiltered.find((entry) => entry.task.$jazz.id === selectedTaskId) ?? null;
+  }, [activeFiltered, selectedTaskId]);
   const selectedTask = selectedTaskEntry?.task && selectedTaskEntry.task.$isLoaded ? selectedTaskEntry.task : null;
 
   const createTask = () => {
@@ -226,6 +232,18 @@ export const OrganizationTasksBoardPage = () => {
     });
     setSummary("");
   };
+
+  const archiveCompletedTasks = () => {
+    activeFiltered
+      .filter((entry) => entry.task.status === "Completed" || entry.task.status === "Cancelled")
+      .forEach((entry) => {
+        entry.task.$jazz.set("status", "Archived");
+      });
+  };
+
+  const completedTaskCount = activeFiltered.filter(
+    (entry) => entry.task.status === "Completed" || entry.task.status === "Cancelled"
+  ).length;
 
   if (!organization.$isLoaded) {
     return <div className="text-sm text-muted-foreground">Loading active board...</div>;
@@ -265,6 +283,11 @@ export const OrganizationTasksBoardPage = () => {
             taskType={taskType}
             onTaskTypeChange={setTaskType}
             onCreate={createTask}
+            trailingActions={(
+              <Button type="button" size="sm" variant="outline" className="h-9 w-full text-sm sm:h-7 sm:w-auto sm:text-xs" onClick={archiveCompletedTasks} disabled={completedTaskCount === 0}>
+                Archive Completed Tasks
+              </Button>
+            )}
           />
         </div>
       </div>

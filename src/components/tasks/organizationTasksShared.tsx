@@ -246,6 +246,7 @@ export const OrganizationTaskCreateBar = ({
   taskType,
   onTaskTypeChange,
   onCreate,
+  trailingActions,
 }: {
   organization: LoadedOrganization;
   profile: LoadedProfile | null;
@@ -256,6 +257,7 @@ export const OrganizationTaskCreateBar = ({
   taskType: LoadedTask["type"];
   onTaskTypeChange: (value: LoadedTask["type"]) => void;
   onCreate: () => void;
+  trailingActions?: React.ReactNode;
 }) => {
   const targets = getCreateTargets(organization);
 
@@ -298,6 +300,8 @@ export const OrganizationTaskCreateBar = ({
       <Button size="sm" className="h-9 w-full text-sm sm:h-7 sm:w-auto sm:text-xs" onClick={onCreate} disabled={!profile || !summary.trim()}>
         Create task
       </Button>
+
+      {trailingActions}
     </div>
   );
 };
