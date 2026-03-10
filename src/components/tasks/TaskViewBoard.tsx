@@ -36,6 +36,14 @@ const parseColumnDndId = (value: string) =>
 const parseTaskDndId = (value: string) =>
   value.startsWith(TASK_PREFIX) ? value.slice(TASK_PREFIX.length) : null;
 
+const cardToneByStatus: Record<BoardStatus, string> = {
+  Backlog: "before:bg-stone-300",
+  "In Progress": "before:bg-sky-500",
+  "In-Review": "before:bg-amber-400",
+  Completed: "before:bg-emerald-500",
+  Cancelled: "before:bg-rose-400",
+};
+
 const TaskBoardColumn = ({ status, children }: { status: BoardStatus; children: React.ReactNode }) => {
   const droppable = useDroppable({ id: columnDndId(status) });
 
@@ -55,6 +63,7 @@ const TaskBoardCard = ({
 }) => {
   const draggable = useDraggable({ id: taskDndId(task.id) });
   const isCompleted = task.status === "Completed";
+  const cardTone = cardToneByStatus[task.status as BoardStatus] ?? "before:bg-stone-300";
   const style = {
     transform: CSS.Translate.toString(draggable.transform),
   };
@@ -66,35 +75,47 @@ const TaskBoardCard = ({
       {...draggable.attributes}
       {...draggable.listeners}
       type="button"
-      className="w-full rounded-lg border border-border/70 bg-card px-2 py-2 text-left shadow-xs transition-colors hover:bg-muted/50"
+      className={`relative w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20 px-3 py-3 text-left shadow-sm transition-[transform,box-shadow,border-color] before:absolute before:left-0 before:top-0 before:h-full before:w-1 hover:-translate-y-0.5 hover:border-border hover:shadow-md ${cardTone}`}
       onClick={() => onSelect?.(task.id)}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className={`text-sm font-medium ${isCompleted ? "line-through text-muted-foreground" : ""}`}>{task.summary}</p>
-        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+      <div className="flex items-start justify-between gap-3">
+        {task.taskHref ? (
+          <Link
+            to={task.taskHref}
+            className={`text-[11px] font-semibold tracking-[0.08em] uppercase hover:underline ${isCompleted ? "text-muted-foreground line-through" : "text-primary"}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {task.taskKey}
+          </Link>
+        ) : (
+          <p className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${isCompleted ? "text-muted-foreground line-through" : "text-primary"}`}>{task.taskKey}</p>
+        )}
+        <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 px-1.5 text-[10px] font-bold text-primary shadow-sm">
           {(task.assigneeInitial ?? "?").toUpperCase()}
         </span>
       </div>
-      {task.taskHref ? (
-        <Link
-          to={task.taskHref}
-          className={`text-xs font-medium hover:underline ${isCompleted ? "text-muted-foreground line-through" : "text-primary"}`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {task.taskKey}
-        </Link>
-      ) : (
-        <p className={`text-xs font-medium ${isCompleted ? "text-muted-foreground line-through" : "text-primary"}`}>{task.taskKey}</p>
-      )}
-      {task.projectLabel ? (
-        task.projectHref ? (
-          <Link to={task.projectHref} className={`text-xs hover:underline ${isCompleted ? "text-muted-foreground line-through" : "text-muted-foreground"}`} onClick={(event) => event.stopPropagation()}>
-            {task.projectLabel}
-          </Link>
-        ) : (
-          <p className={`text-xs text-muted-foreground ${isCompleted ? "line-through" : ""}`}>{task.projectLabel}</p>
-        )
-      ) : null}
+
+      <p className={`mt-2 text-sm leading-snug font-medium ${isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
+        {task.summary}
+      </p>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          {task.projectLabel ? (
+            task.projectHref ? (
+              <Link to={task.projectHref} className={`truncate text-xs hover:underline ${isCompleted ? "text-muted-foreground line-through" : "text-muted-foreground"}`} onClick={(event) => event.stopPropagation()}>
+                {task.projectLabel}
+              </Link>
+            ) : (
+              <p className={`truncate text-xs text-muted-foreground ${isCompleted ? "line-through" : ""}`}>{task.projectLabel}</p>
+            )
+          ) : null}
+        </div>
+
+        <span className="inline-flex shrink-0 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          {task.type}
+        </span>
+      </div>
     </button>
   );
 };
@@ -206,15 +227,20 @@ export const TaskViewBoard = ({
 
       <DragOverlay>
         {draggedTask ? (
-          <div className="w-[280px] max-w-[90vw] rounded-lg border border-border/70 bg-card px-2 py-2 text-left shadow-2xl">
+          <div className="w-[280px] max-w-[90vw] overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20 px-3 py-3 text-left shadow-2xl">
             <div className="flex items-start justify-between gap-2">
-              <p className={`text-sm font-medium ${draggedTask.status === "Completed" ? "line-through text-muted-foreground" : ""}`}>{draggedTask.summary}</p>
-              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+              <p className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${draggedTask.status === "Completed" ? "text-muted-foreground line-through" : "text-primary"}`}>{draggedTask.taskKey}</p>
+              <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 px-1.5 text-[10px] font-bold text-primary shadow-sm">
                 {(draggedTask.assigneeInitial ?? "?").toUpperCase()}
               </span>
             </div>
-            <p className={`text-xs font-medium ${draggedTask.status === "Completed" ? "text-muted-foreground line-through" : "text-primary"}`}>{draggedTask.taskKey}</p>
-            {draggedTask.projectLabel ? <p className={`text-xs text-muted-foreground ${draggedTask.status === "Completed" ? "line-through" : ""}`}>{draggedTask.projectLabel}</p> : null}
+            <p className={`mt-2 text-sm font-medium leading-snug ${draggedTask.status === "Completed" ? "line-through text-muted-foreground" : "text-foreground"}`}>{draggedTask.summary}</p>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              {draggedTask.projectLabel ? <p className={`truncate text-xs text-muted-foreground ${draggedTask.status === "Completed" ? "line-through" : ""}`}>{draggedTask.projectLabel}</p> : <span />}
+              <span className="inline-flex shrink-0 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                {draggedTask.type}
+              </span>
+            </div>
           </div>
         ) : null}
       </DragOverlay>
