@@ -7,8 +7,18 @@ setDefaultSchemaPermissions({
 
 export const Document = co.map({
   name: z.string(), 
-  content: co.richText(),
+  content: z.string(),
   get children(): co.Optional<co.List<typeof Document>> { return co.optional(co.list(Document)) }
+}).withMigration((document) => {
+  if (!document.$jazz.has("content")) {
+    document.$jazz.set("content", "");
+    return;
+  }
+
+  const currentContent = document.content as unknown;
+  if (typeof currentContent !== "string") {
+    document.$jazz.set("content", currentContent == null ? "" : String(currentContent));
+  }
 })
 
 export const Requirement = co.map({
@@ -90,7 +100,7 @@ export const Project = co.map({
   next_task_number: z.int(),
   next_requirement_number: z.int(),
   next_test_number: z.int(),
-  overview: co.richText(),
+  overview: z.string(),
   documents: co.list(Document),
   requirements: co.list(Requirement),
   tests: co.list(Test),
@@ -131,6 +141,15 @@ export const Project = co.map({
   if (!project.$jazz.has("next_test_number")) {
     project.$jazz.set("next_test_number", 1);
   }
+
+  if (!project.$jazz.has("overview")) {
+    project.$jazz.set("overview", "");
+  } else {
+    const currentOverview = project.overview as unknown;
+    if (typeof currentOverview !== "string") {
+      project.$jazz.set("overview", currentOverview == null ? "" : String(currentOverview));
+    }
+  }
 })
 export type Project = co.loaded<typeof Project>;
 
@@ -138,7 +157,7 @@ export const Organization = co.map({
   name: z.string(),
   project_key: z.string(),
   next_task_number: z.int(),
-  overview: co.richText(),
+  overview: z.string(),
   projects: co.list(Project),
   documents: co.list(Document),
   people: co.list(Person),
@@ -184,6 +203,11 @@ export const Organization = co.map({
       }
     }
     organization.$jazz.set("next_task_number", highest + 1);
+  }
+
+  const currentOverview = organization.overview as unknown;
+  if (typeof currentOverview !== "string") {
+    organization.$jazz.set("overview", currentOverview == null ? "" : String(currentOverview));
   }
 })
 export type Organization = co.loaded<typeof Organization>;

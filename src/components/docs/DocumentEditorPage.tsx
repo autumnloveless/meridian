@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
 import { useCoState } from "jazz-tools/react";
 
 import { Document } from "@/schema";
-
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/mantine/style.css";
 
 const absoluteDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -45,9 +40,8 @@ export const DocumentEditorPage = () => {
   const { docId } = useParams();
   const document = useCoState(Document, docId);
   const remoteTitle = document.$isLoaded ? document.name : "";
-  const remoteContent = document.$isLoaded ? document.content.toString() : "";
+  const remoteContent = document.$isLoaded ? document.content : "";
 
-  const editor = useCreateBlockNote();
   const [draftTitle, setDraftTitle] = useState("");
   const [lastSavedTitle, setLastSavedTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
@@ -58,7 +52,6 @@ export const DocumentEditorPage = () => {
 
   const latestTitleRef = useRef("");
   const latestContentRef = useRef("");
-  const isHydratingEditorRef = useRef(false);
 
   useEffect(() => {
     latestTitleRef.current = draftTitle;
@@ -77,30 +70,6 @@ export const DocumentEditorPage = () => {
     setLastSavedContent(remoteContent);
     setSaveError(null);
   }, [document.$isLoaded, remoteTitle, remoteContent]);
-
-  useEffect(() => {
-    if (!document.$isLoaded) return;
-    if (remoteContent === latestContentRef.current) return;
-
-    let canceled = false;
-
-    const hydrateEditor = async () => {
-      isHydratingEditorRef.current = true;
-      try {
-        const blocks = await editor.tryParseMarkdownToBlocks(remoteContent);
-        if (canceled) return;
-        editor.replaceBlocks(editor.document, blocks.length > 0 ? blocks : []);
-      } finally {
-        if (!canceled) isHydratingEditorRef.current = false;
-      }
-    };
-
-    void hydrateEditor();
-
-    return () => {
-      canceled = true;
-    };
-  }, [document.$isLoaded, remoteContent, editor]);
 
   const saveTitle = useCallback(async () => {
     if (!document.$isLoaded) return;
@@ -128,9 +97,7 @@ export const DocumentEditorPage = () => {
 
     setIsSaving(true);
     try {
-      const loadedDocument = await document.$jazz.ensureLoaded({ resolve: { content: true } });
-      if (!loadedDocument.content.$isLoaded) return;
-      loadedDocument.content.$jazz.applyDiff(nextContent);
+      document.$jazz.set("content", nextContent);
       setLastSavedContent(nextContent);
       setSaveError(null);
     } catch (error) {
@@ -171,10 +138,7 @@ export const DocumentEditorPage = () => {
   if (!docId) return <div className="text-sm text-red-700">Invalid document URL.</div>;
   if (!document.$isLoaded) return <div className="text-sm text-muted-foreground">Loading document...</div>;
 
-  const contentUpdatedAt = document.content.$isLoaded
-    ? document.content.$jazz.lastUpdatedAt
-    : document.$jazz.lastUpdatedAt;
-  const effectiveUpdatedAt = Math.max(document.$jazz.lastUpdatedAt, contentUpdatedAt);
+  const effectiveUpdatedAt = document.$jazz.lastUpdatedAt;
 
   return (
     <section className="flex h-full min-h-[calc(100dvh-8rem)] flex-col bg-background">
@@ -193,21 +157,18 @@ export const DocumentEditorPage = () => {
         />
       </header>
 
-      <div className="flex-1 pb-4">
-        <BlockNoteView
-          editor={editor}
-          onChange={async () => {
-            if (isHydratingEditorRef.current) return;
-
-            try {
-              const markdown = await editor.blocksToMarkdownLossy(editor.document);
-              setDraftContent(markdown);
-              setSaveError(null);
-            } catch (error) {
-              setSaveError(error instanceof Error ? error.message : "Unable to read editor content.");
-            }
+      <div className="flex-1 pb-4 px-3 sm:px-6">
+        <textarea
+          value={draftContent}
+          onChange={(event) => {
+            setDraftContent(event.target.value);
+            setSaveError(null);
           }}
-          className="h-full blocknote-readable-links"
+          onBlur={() => {
+            void saveContent();
+          }}
+          className="h-full min-h-[18rem] w-full resize-none rounded-md border bg-background p-3 text-sm leading-6 outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="Write your notes here..."
         />
       </div>
 

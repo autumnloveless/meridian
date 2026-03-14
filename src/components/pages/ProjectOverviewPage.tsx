@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
 import { useAccount, useCoState } from "jazz-tools/react";
 
 import { Account, Project } from "@/schema";
@@ -12,9 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 import { ensureDefaultBuckets } from "@/components/tasks/organizationTasksShared";
-
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/mantine/style.css";
 
 
 export const ProjectOverviewPage = () => {
@@ -32,7 +27,6 @@ export const ProjectOverviewPage = () => {
 
   const project = useCoState(Project, projectId, {
     resolve: {
-      overview: true,
       task_buckets: {
         $each: {
           tasks: {
@@ -45,18 +39,16 @@ export const ProjectOverviewPage = () => {
       },
     },
   });
-  const remoteOverview = project.$isLoaded ? project.overview.toString() : "";
+  const remoteOverview = project.$isLoaded ? project.overview : "";
 
   const assigneeOptions = useProjectAssigneeOptions(project.$isLoaded ? project : null);
 
-  const editor = useCreateBlockNote();
   const [draftOverview, setDraftOverview] = useState("");
   const [lastSavedOverview, setLastSavedOverview] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const latestOverviewRef = useRef("");
-  const isHydratingEditorRef = useRef(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -81,30 +73,6 @@ export const ProjectOverviewPage = () => {
     setSaveError(null);
   }, [project.$isLoaded, remoteOverview]);
 
-  useEffect(() => {
-    if (!project.$isLoaded) return;
-    if (remoteOverview === latestOverviewRef.current) return;
-
-    let canceled = false;
-
-    const hydrateEditor = async () => {
-      isHydratingEditorRef.current = true;
-      try {
-        const blocks = await editor.tryParseMarkdownToBlocks(remoteOverview);
-        if (canceled) return;
-        editor.replaceBlocks(editor.document, blocks.length > 0 ? blocks : []);
-      } finally {
-        if (!canceled) isHydratingEditorRef.current = false;
-      }
-    };
-
-    void hydrateEditor();
-
-    return () => {
-      canceled = true;
-    };
-  }, [project.$isLoaded, remoteOverview, editor]);
-
   const saveOverview = useCallback(async () => {
     if (!project.$isLoaded) return;
 
@@ -113,9 +81,7 @@ export const ProjectOverviewPage = () => {
 
     setIsSaving(true);
     try {
-      const loadedProject = await project.$jazz.ensureLoaded({ resolve: { overview: true } });
-      if (!loadedProject.overview.$isLoaded) return;
-      loadedProject.overview.$jazz.applyDiff(nextOverview);
+      (project as any).$jazz.set("overview", nextOverview);
       setLastSavedOverview(nextOverview);
       setSaveError(null);
     } catch (error) {
@@ -251,23 +217,18 @@ export const ProjectOverviewPage = () => {
         <p className="text-sm text-muted-foreground">Quick project context and status notes.</p>
       </header>
 
-      <div className="h-[36vh] min-h-[260px] max-h-[46vh] overflow-hidden rounded-md border bg-background sm:h-[30vh] sm:max-h-[33vh]">
-        <BlockNoteView
-          editor={editor}
-          onChange={async () => {
-            if (isHydratingEditorRef.current) return;
-
-            try {
-              const markdown = await editor.blocksToMarkdownLossy(editor.document);
-              setDraftOverview(markdown);
-              setSaveError(null);
-            } catch (error) {
-              setSaveError(error instanceof Error ? error.message : "Unable to read summary content.");
-            }
-          }}
-          className="h-full blocknote-readable-links"
-        />
-      </div>
+      <textarea
+        value={draftOverview}
+        onChange={(event) => {
+          setDraftOverview(event.target.value);
+          setSaveError(null);
+        }}
+        onBlur={() => {
+          void saveOverview();
+        }}
+        className="min-h-[300px] w-full resize-y rounded-md border bg-background p-3 text-sm"
+        placeholder="Write project context and status updates..."
+      />
 
       <footer className="flex flex-col items-start justify-between gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center">
         <span>

@@ -32,7 +32,6 @@ export const OrganizationOverviewPage = () => {
 
   const organization = useCoState(Organization, orgId, {
     resolve: {
-      overview: true,
       task_buckets: {
         $each: {
           tasks: {
@@ -79,10 +78,10 @@ export const OrganizationOverviewPage = () => {
 
   useEffect(() => {
     if (!organization.$isLoaded) return;
-    const current = organization.overview.toString();
+    const current = organization.overview;
     setDraft(current);
     setLastSaved(current);
-  }, [organization.$isLoaded, organization.$isLoaded ? organization.overview.toString() : ""]);
+  }, [organization.$isLoaded, organization.$isLoaded ? organization.overview : ""]);
 
   useEffect(() => {
     if (!organization.$isLoaded || draft === lastSaved) return;
@@ -90,8 +89,7 @@ export const OrganizationOverviewPage = () => {
     const timeout = window.setTimeout(async () => {
       setIsSaving(true);
       try {
-        const loaded = await organization.$jazz.ensureLoaded({ resolve: { overview: true } });
-        loaded.overview.$jazz.applyDiff(draft);
+        (organization as any).$jazz.set("overview", draft);
         setLastSaved(draft);
       } finally {
         setIsSaving(false);

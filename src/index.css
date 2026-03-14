@@ -201,27 +201,3 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
-
-/* Keep BlockNote links visibly distinct from normal text. */
-.blocknote-readable-links a[href] {
-  color: var(--primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-thickness: 1.5px;
-  font-weight: 500;
-}
-
-.blocknote-readable-links a[href]:hover {
-  opacity: 0.85;
-}
-
-/* Google Docs often pastes list items as li > p, and default typography
-   margins can make bullets look double-spaced. Keep list-item paragraphs tight. */
-.blocknote-readable-links .ProseMirror li > p {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.blocknote-readable-links .ProseMirror li > p + p {
-  margin-top: 0.25rem;
-}
