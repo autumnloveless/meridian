@@ -8,6 +8,7 @@ import { TaskDetailsPane } from "@/components/tasks/TaskDetailsPane";
 import { TaskView, type TaskViewItem } from "@/components/tasks/TaskView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { handleTextareaTabKey } from "@/lib/utils";
 import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 import {
   collectOrganizationTaskContainers,
@@ -225,6 +226,7 @@ export const OrganizationOverviewPage = () => {
       <textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => handleTextareaTabKey(event, setDraft)}
         className="min-h-[300px] w-full resize-y rounded-md border bg-background p-3 text-sm"
         placeholder="Write an overview for this organization..."
       />

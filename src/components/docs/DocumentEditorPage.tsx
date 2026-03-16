@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { useCoState } from "jazz-tools/react";
 
 import { Document } from "@/schema";
+import { handleTextareaTabKey } from "@/lib/utils";
 
 const absoluteDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -162,6 +163,10 @@ export const DocumentEditorPage = () => {
           value={draftContent}
           onChange={(event) => {
             setDraftContent(event.target.value);
+            setSaveError(null);
+          }}
+          onKeyDown={(event) => {
+            handleTextareaTabKey(event, setDraftContent);
             setSaveError(null);
           }}
           onBlur={() => {

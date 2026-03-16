@@ -8,6 +8,7 @@ import { TaskView, type TaskViewItem } from "@/components/tasks/TaskView";
 import { useProjectAssigneeOptions } from "@/components/tasks/useProjectAssigneeOptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { handleTextareaTabKey } from "@/lib/utils";
 import { allocateTaskId, getTaskDisplayId } from "@/lib/taskIds";
 import { ensureDefaultBuckets } from "@/components/tasks/organizationTasksShared";
 
@@ -221,6 +222,10 @@ export const ProjectOverviewPage = () => {
         value={draftOverview}
         onChange={(event) => {
           setDraftOverview(event.target.value);
+          setSaveError(null);
+        }}
+        onKeyDown={(event) => {
+          handleTextareaTabKey(event, setDraftOverview);
           setSaveError(null);
         }}
         onBlur={() => {
