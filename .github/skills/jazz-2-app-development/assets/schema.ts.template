@@ -1,0 +1,23 @@
+import { schema as s } from "jazz-tools";
+
+const schema = {
+  projects: s.table({
+    name: s.string(),
+    description: s.string().optional(),
+  }),
+  tasks: s.table({
+    title: s.string(),
+    status: s.enum("todo", "in_progress", "done"),
+    projectId: s.ref("projects"),
+    assignee_id: s.string().optional(),
+  }),
+};
+
+type AppSchema = s.Schema<typeof schema>;
+
+export const app: s.App<AppSchema> = s.defineApp(schema);
+
+export type ProjectRow = s.RowOf<typeof app.projects>;
+export type TaskRow = s.RowOf<typeof app.tasks>;
+export type TaskInsert = s.InsertOf<typeof app.tasks>;
+export type TaskWhere = s.WhereOf<typeof app.tasks>;
