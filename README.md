@@ -1,5 +1,6 @@
-# Meridian
+# V1 Meridian
 A cozy local-first project management notebook
+Uses classic jazz library, which is being deprecated in favor of Jazz 2.0
 
 ## Environment
 
